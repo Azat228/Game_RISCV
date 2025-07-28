@@ -74,3 +74,23 @@ void I2C_stop(void) {
   while(!(I2C1->STAR1 & I2C_STAR1_BTF));          // wait for last byte transmitted
   I2C1->CTLR1 |= I2C_CTLR1_STOP;                  // set STOP condition
 }
+void EEPROM_write(uint16_t addr, uint8_t data) {
+    // EEPROM I2C address (usually 0xA0 for write, depends on your EEPROM)
+    uint8_t eeprom_addr = 0xA0;
+
+    // Start transmission with write bit (0)
+    I2C_start(eeprom_addr);
+
+    // Send memory address (2 bytes for most EEPROMs)
+    I2C_write(addr >> 8);    // High byte of address
+    I2C_write(addr & 0xFF);  // Low byte of address
+
+    // Send data byte
+    I2C_write(data);
+
+    // Stop transmission
+    I2C_stop();
+
+    // Wait for write cycle to complete (EEPROMs need time to write)
+    delay_ms(5); // Adjust based on your EEPROM's specs
+}
