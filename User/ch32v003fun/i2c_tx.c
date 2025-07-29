@@ -4,13 +4,13 @@
 // 2023 by Stefan Wagner:   https://github.com/wagiminator
 
 #include "i2c_tx.h"
-
 // I2C event flag definitions
 #define I2C_START_GENERATED     0x00010003    // BUSY, MSL, SB
 #define I2C_ADDR_TRANSMITTED    0x00820003    // BUSY, MSL, ADDR, TXE
 #define I2C_BYTE_TRANSMITTED    0x00840003    // BUSY, MSL, BTF, TXE
 #define I2C_checkEvent(n)       (((((uint32_t)I2C1->STAR1<<16) | I2C1->STAR2) & n) == n)
-
+#define EEPROM_I2C_ADDR         0x52
+#define EEPROM_WRITE_DELAY      5
 // Init I2C
 void I2C_init(void) {
   #if I2C_REMAP == 0
@@ -73,4 +73,28 @@ void I2C_write(uint8_t data) {
 void I2C_stop(void) {
   while(!(I2C1->STAR1 & I2C_STAR1_BTF));          // wait for last byte transmitted
   I2C1->CTLR1 |= I2C_CTLR1_STOP;                  // set STOP condition
+}
+uint8_t I2C_read_ACK(void) {
+    I2C1->CTLR1 |= I2C_CTLR1_ACK;
+    while(!(I2C1->STAR1 & I2C_STAR1_RXNE));
+    return I2C1->DATAR;
+}
+
+uint8_t I2C_read_NACK(void) {
+    I2C1->CTLR1 &= ~I2C_CTLR1_ACK;
+    I2C1->CTLR1 |= I2C_CTLR1_STOP;
+    while(!(I2C1->STAR1 & I2C_STAR1_RXNE));
+    return I2C1->DATAR;
+}
+
+uint8_t I2C_check_ACK(void) {
+    return !(I2C1->STAR1 & I2C_STAR1_AF);
+}
+
+void I2C_recover(void) {
+    if(I2C1->STAR2 & I2C_STAR2_BUSY) {
+        I2C1->CTLR1 |= I2C_CTLR1_STOP;
+        while(I2C1->STAR2 & I2C_STAR2_BUSY);
+    }
+    I2C1->STAR1 |= I2C_STAR1_AF | I2C_STAR1_ARLO;
 }
