@@ -4,14 +4,13 @@
 #include "./ch32v003fun/ws2812b_simple.h"
 #include "./data/fonts.h"
 #include <stdbool.h>
-#include "ch32v003fun/i2c_tx.h"
+
 #define LED_PINS GPIOA, 2
+
 // Game constants
 #define INITIAL_SPEED 500  // ms between moves
 #define GRID_SIZE 8        // 8x8 grid
 #define MAX_SCORES 10      // Number of high scores to keep
-#define EEPROM_I2C_ADDR 0x52
-#define SCORE_SIZE 2 // Each score uses 2 bytes (index + value)
 
 typedef struct snakePartDir {
     char part;      // 'h'=head, 'b'=body, 't'=tail, 'a'=apple, '0'=empty
@@ -35,7 +34,6 @@ uint8_t currentScoreIndex = 0;
 bool gameOver;
 bool game_regime = false;
 uint16_t speedCounter = 0;
-uint16_t Score_start_adress = 0x0008;
 
 // Generate a new apple at random empty position
 void generate_apple(void) {
@@ -196,106 +194,25 @@ void show_score_history() {
         Delay_Ms(300);
     }
 }
-void show_score(uint8_t score, color_t color) {
-    clear();
-    const uint8_t tenth = score / 10;
-    const uint8_t unit = score % 10;
 
-    // Show tens digit on left, units on right
-    if(tenth > 0) {
-        font_draw(font_list[tenth], color, 4);
-    }
-    font_draw(font_list[unit], color, 0);
-    WS2812BSimpleSend(LED_PINS, (uint8_t *)led_array, NUM_LEDS * 3);
-}
-
-/* ********************************************************************
-* *********************************************************************
-***********************EEPROM handling*********************************
- * *********************************************************************
- * *********************************************************************
- */
-void eeprom_write_byte(uint16_t mem_addr, uint8_t data) {
-    I2C_start(EEPROM_I2C_ADDR);                     // Start transmission, send EEPROM address (write)
-    I2C_write((mem_addr >> 8) & 0xFF);              // Send high byte of memory address
-    I2C_write(mem_addr & 0xFF);                     // Send low byte of memory address
-    I2C_write(data);                                // Send data byte
-    I2C_stop();                                     // Stop transmission
-    Delay_Ms(5);                   // Wait for write cycle to finish (5ms typical)
-}
-
-// Read one byte from EEPROM at 16-bit memory address
-uint8_t eeprom_read_byte(uint16_t mem_addr) {
-    uint8_t data;
-
-    I2C_start(EEPROM_I2C_ADDR);                     // Start transmission, send EEPROM address (write)
-    I2C_write((mem_addr >> 8) & 0xFF);              // Send high byte of memory address
-    I2C_write(mem_addr & 0xFF);                     // Send low byte of memory address
-
-    I2C_start(EEPROM_I2C_ADDR | 0x01);              // Repeated start, send EEPROM address (read)
-    data = I2C_read_NACK();                         // Read single byte, send NACK (end transmission)
-    // (I2C_read_NACK() already generates STOP)
-
-    return data;
-}
-void save_all_scores() {
-    uint16_t addr = Score_start_adress;
-    for(uint8_t i = 0;i<MAX_SCORES;i++){
-        eeprom_write_byte(addr, score);
-        addr = addr++;
-    }
-}
-
-// Load all scores from EEPROM
-void load_all_scores() {
-    uint16_t addr = Score_start_adress;
-
-    for(uint8_t i = 0; i < MAX_SCORES; i++) {
-        scoreHistory[i] = eeprom_read_byte(addr);
-        addr++; // Move to next slot
-        Delay_Ms(5); // Short delay between reads
-    }
-}
-
-// Show all scores with flashing animation
-void show_all_scores() {
-    for(uint8_t i = 0; i < MAX_SCORES; i++) {
-        // Flash the score position indicator
-        set_color(63, scoreColor);
-        set_color(62, scoreColor);
-        WS2812BSimpleSend(LED_PINS, (uint8_t *)led_array, NUM_LEDS * 3);
-        Delay_Ms(200);
-
-        // Display the score
-        show_score(scoreHistory[i], scoreColor);
-        Delay_Ms(1500);
-
-        // Clear before next score
-        clear();
-        WS2812BSimpleSend(LED_PINS, (uint8_t *)led_array, NUM_LEDS * 3);
-        Delay_Ms(300);
-    }
-}
-//
 // Save current score to history
-/* ********************************************************************
-* *********************************************************************
-***********************EEPROM handling end*********************************
- * *********************************************************************
- * *********************************************************************
- */
+void save_score() {
+    // Add score to history
+    scoreHistory[currentScoreIndex] = score;
+    currentScoreIndex = (currentScoreIndex + 1) % MAX_SCORES;
+}
+
+
 int main(void) {
     // Initialize hardware
     SystemInit();
     ADC_init();
     JOY_setseed_default();
-    I2C_init();
+
     // Game loop
     while(1) {
-//        load_scores();
         game_init();
         display();
-        I2C_init();
         Delay_Ms(1000); // Initial delay
 
         int8_t currentDirection = -1; // Start moving left
@@ -342,86 +259,29 @@ int main(void) {
             Delay_Ms(currentSpeed);
         }
 
-                   // Save the current score
-                   if(currentScoreIndex < MAX_SCORES) {
-                       scoreHistory[currentScoreIndex] = score;
-                       currentScoreIndex++;
-                   }
 
-                   // Save all scores to EEPROM
-
-
-                   // Show current score with flashing
-                   for(uint8_t i = 0; i < 3; i++) {
-                       show_current_score();
-                       Delay_Ms(500);
-                       clear();
-                       WS2812BSimpleSend(LED_PINS, (uint8_t *)led_array, NUM_LEDS * 3);
-                       Delay_Ms(200);
-                   }
-
-                   // Post-game menu
-                   uint32_t timeout = 100000; // 10 second timeout
-                   while(timeout > 0) {
-                       if(JOY_3_pressed()) {
-                           while(JOY_3_pressed()) Delay_Ms(10);
-                           save_all_scores();
-                           show_all_scores(); // Show all saved scores
-                           timeout = 10000; // Reset timeout
-                       }
-                       else if(JOY_5_pressed()) {
-                           while(JOY_5_pressed()) Delay_Ms(10);
-                           break; // Restart game
-                       }
-
-                       Delay_Ms(10);
-                       timeout -= 10;
-                   }
-
-        /*
         // Game over - save and show score
-        show_current_score();
         save_score();
-
+        show_current_score();
         Delay_Ms(2000);
 
         // Wait for button press
         while(1) {
 
-            // Show current score with flashing effect
-            for(uint8_t i = 0; i < 3; i++) {
-                show_current_score();
-                Delay_Ms(300);
-                clear();
-                WS2812BSimpleSend(LED_PINS, (uint8_t *)led_array, NUM_LEDS * 3);
-                Delay_Ms(200);
+            if (JOY_7_pressed()) { // Show score history
+                while(JOY_7_pressed()) Delay_Ms(10);
+                show_score_history();
+                Delay_Ms(1000);
             }
-            show_current_score();
+            Delay_Ms(10);
 
-            // More responsive button polling
-            uint32_t timeout = 5000; // 5 second timeout
-            while(timeout > 0) {
-                if(JOY_7_pressed()) {
-                    while(JOY_7_pressed()) Delay_Ms(10);
-                    show_score_history();
-                    timeout = 5000; // Reset timeout
-                }
-                else if(JOY_5_pressed()) {
-                    while(JOY_5_pressed()) Delay_Ms(10);
-                    break; // Exit to restart game
-                }
-
-                Delay_Ms(10);
-                timeout -= 10;
+            if (JOY_5_pressed()) { // Restart game
+                          while(JOY_5_pressed()) Delay_Ms(10);
+                          break;
             }
-
-            // If we get here, either timeout or button press
-            break; // Restart game
 
         }
-    */
     }
-
 
     return 0;
 }
