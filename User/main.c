@@ -1,4 +1,5 @@
 #define WS2812BSIMPLE_IMPLEMENTATION
+#include "ch32v003fun/ch32v003fun.h"
 #include "./data/colors.h"
 #include "./ch32v003fun/driver.h"
 #include "./ch32v003fun/ws2812b_simple.h"
@@ -10,7 +11,7 @@
 #define INITIAL_SPEED 500  // ms between moves
 #define GRID_SIZE 8        // 8x8 grid
 #define MAX_SCORES 10      // Number of high scores to keep
-#define EEPROM_I2C_ADDR 0x52
+#define AT24C256_ADDR 0x52
 #define SCORE_SIZE 2 // Each score uses 2 bytes (index + value)
 
 typedef struct snakePartDir {
@@ -215,33 +216,85 @@ void show_score(uint8_t score, color_t color) {
  * *********************************************************************
  * *********************************************************************
  */
-void eeprom_write_byte(uint16_t mem_addr, uint8_t data) {
-    I2C_start(EEPROM_I2C_ADDR);                     // Start transmission, send EEPROM address (write)
-    I2C_write((mem_addr >> 8) & 0xFF);              // Send high byte of memory address
-    I2C_write(mem_addr & 0xFF);                     // Send low byte of memory address
-    I2C_write(data);                                // Send data byte
-    I2C_stop();                                     // Stop transmission
-    Delay_Ms(5);                   // Wait for write cycle to finish (5ms typical)
+void I2C_Init_Config(void)
+{
+    RCC->APB2PCENR |= RCC_APB2Periph_GPIOA;    // Enable GPIOA clock
+    RCC->APB1PCENR |= RCC_APB1Periph_I2C1;     // Enable I2C1 clock
+
+    // PA1 = I2C1_SCL, PA2 = I2C1_SDA
+    GPIOA->CFGLR &= ~((0xF << (4 * 1)) | (0xF << (4 * 2))); // Clear PA1/PA2
+    GPIOA->CFGLR |= ((0xB << (4 * 1)) | (0xB << (4 * 2)));  // Set as AF Open-Drain
+
+    I2C1->CTLR1 |= I2C_CTLR1_SWRST;      // Reset I2C1
+    I2C1->CTLR1 &= ~I2C_CTLR1_SWRST;     // Release reset
+
+    I2C1->CTLR2 = 36;                    // 36 MHz PCLK1
+    I2C1->CKCFGR = 180;                  // 100kHz @36MHz (check datasheet for exact value)
+    I2C1->OADDR1 = 0;                    // Own address not used as master
+    I2C1->CTLR1 |= I2C_CTLR1_PE;         // Enable I2C1
+}
+void AT24C256_WriteByte(uint16_t mem_addr, uint8_t data)
+{
+    // Wait until I2C not busy
+    while (I2C1->STAR2 & I2C_STAR2_BUSY);
+
+    I2C1->CTLR1 |= I2C_CTLR1_START; // Generate START
+    while (!(I2C1->STAR1 & I2C_STAR1_SB));
+    I2C1->DATAR = (AT24C256_ADDR << 1) | 0; // Write address
+    while (!(I2C1->STAR1 & I2C_STAR1_ADDR));
+    (void)I2C1->STAR2;
+
+    I2C1->DATAR = (mem_addr >> 8) & 0xFF; // High byte
+    while (!(I2C1->STAR1 & I2C_STAR1_TXE));
+    I2C1->DATAR = mem_addr & 0xFF;        // Low byte
+    while (!(I2C1->STAR1 & I2C_STAR1_TXE));
+    I2C1->DATAR = data;
+    while (!(I2C1->STAR1 & I2C_STAR1_TXE));
+
+    I2C1->CTLR1 |= I2C_CTLR1_STOP;
+    for (volatile int wait = 0; wait < 50000; ++wait); // Wait for EEPROM write cycle (max 5ms)
 }
 
-// Read one byte from EEPROM at 16-bit memory address
-uint8_t eeprom_read_byte(uint16_t mem_addr) {
+uint8_t AT24C256_ReadByte(uint16_t mem_addr)
+{
     uint8_t data;
 
-    I2C_start(EEPROM_I2C_ADDR);                     // Start transmission, send EEPROM address (write)
-    I2C_write((mem_addr >> 8) & 0xFF);              // Send high byte of memory address
-    I2C_write(mem_addr & 0xFF);                     // Send low byte of memory address
+    while (I2C1->STAR2 & I2C_STAR2_BUSY);
 
-    I2C_start(EEPROM_I2C_ADDR | 0x01);              // Repeated start, send EEPROM address (read)
-    data = I2C_read_NACK();                         // Read single byte, send NACK (end transmission)
-    // (I2C_read_NACK() already generates STOP)
+    // Send memory address
+    I2C1->CTLR1 |= I2C_CTLR1_START;
+    while (!(I2C1->STAR1 & I2C_STAR1_SB));
+    I2C1->DATAR = (AT24C256_ADDR << 1) | 0; // Write mode
+    while (!(I2C1->STAR1 & I2C_STAR1_ADDR));
+    (void)I2C1->STAR2;
+    I2C1->DATAR = (mem_addr >> 8) & 0xFF;
+    while (!(I2C1->STAR1 & I2C_STAR1_TXE));
+    I2C1->DATAR = mem_addr & 0xFF;
+    while (!(I2C1->STAR1 & I2C_STAR1_TXE));
+
+    // Repeated start
+    I2C1->CTLR1 |= I2C_CTLR1_START;
+    while (!(I2C1->STAR1 & I2C_STAR1_SB));
+    I2C1->DATAR = (AT24C256_ADDR << 1) | 1; // Read mode
+    while (!(I2C1->STAR1 & I2C_STAR1_ADDR));
+    (void)I2C1->STAR2;
+
+    I2C1->CTLR2 |= I2C_CTLR2_LAST; // Single byte read
+    I2C1->CTLR1 &= ~I2C_CTLR1_ACK; // NACK after receive
+
+    while (!(I2C1->STAR1 & I2C_STAR1_RXNE));
+    data = I2C1->DATAR;
+
+    I2C1->CTLR1 |= I2C_CTLR1_STOP;
+
+    I2C1->CTLR1 |= I2C_CTLR1_ACK; // Re-enable ACK for next communication
 
     return data;
 }
 void save_all_scores() {
     uint16_t addr = Score_start_adress;
     for(uint8_t i = 0;i<MAX_SCORES;i++){
-        eeprom_write_byte(addr, score);
+        AT24C256_WriteByte(addr, score);
         addr = addr++;
     }
 }
@@ -251,7 +304,7 @@ void load_all_scores() {
     uint16_t addr = Score_start_adress;
 
     for(uint8_t i = 0; i < MAX_SCORES; i++) {
-        scoreHistory[i] = eeprom_read_byte(addr);
+        scoreHistory[i] = AT24C256_ReadByte(addr);
         addr++; // Move to next slot
         Delay_Ms(5); // Short delay between reads
     }
@@ -289,7 +342,11 @@ int main(void) {
     SystemInit();
     ADC_init();
     JOY_setseed_default();
-    I2C_init();
+    I2C_Init_Config();
+    uint8_t value = 0x5A;
+    AT24C256_WriteByte(0x0000, value);
+    Delay_Ms(5);
+    uint8_t read_val = AT24C256_ReadByte(0x0000);
     // Game loop
     while(1) {
 //        load_scores();
@@ -365,8 +422,10 @@ int main(void) {
                    while(timeout > 0) {
                        if(JOY_3_pressed()) {
                            while(JOY_3_pressed()) Delay_Ms(10);
-                           save_all_scores();
+
+
                            show_all_scores(); // Show all saved scores
+                           save_all_scores();
                            timeout = 10000; // Reset timeout
                        }
                        else if(JOY_5_pressed()) {
