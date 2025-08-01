@@ -1,18 +1,70 @@
+#define CH32V003_I2C_IMPLEMENTATION
 #define WS2812BSIMPLE_IMPLEMENTATION
-#include "ch32v003fun/ch32v003fun.h"
+#include <stdbool.h>
+#include <stdio.h>
+#include "./ch32v003fun/ch32v003_i2c.h"
 #include "./data/colors.h"
 #include "./ch32v003fun/driver.h"
-#include "./ch32v003fun/ws2812b_simple.h"
 #include "./data/fonts.h"
-#include <stdbool.h>
-#include "ch32v003fun/i2c_tx.h"
+#include "./data/music.h"
+#include "./ch32v003fun/ws2812b_simple.h"
 #define LED_PINS GPIOA, 2
 // Game constants
 #define INITIAL_SPEED 500  // ms between moves
 #define GRID_SIZE 8        // 8x8 grid
 #define MAX_SCORES 10      // Number of high scores to keep
-#define AT24C256_ADDR 0x52
 #define SCORE_SIZE 2 // Each score uses 2 bytes (index + value)
+//Storage defines
+#define EEPROM_ADDR 0x52 // obtained from i2c_scan(), before shifting by 1 bit
+#define page_size 64    // range of byte that stores status of page[x]
+#define opcode_size 28    // range of byte that stores opcodes
+#define init_status_addr_begin 0
+#define init_status_addr_end 7
+#define init_status_reg_size (init_status_addr_end - init_status_addr_begin + 1) // size  = 8
+#define init_status_format "  %c "
+#define init_status_data (uint8_t *)"IL000001"
+#define page_status_addr_begin 8 // page 8
+#define page_status_addr_end 511 // page 511
+#define page_status_reg_size (page_status_addr_end - page_status_addr_begin + 1) // page size = 504
+#define paint_addr_begin 8 //paint page start at 8
+#define sizeof_paint_data (3 * NUM_LEDS) //paint page size = 192
+#define sizeof_paint_data_aspage (sizeof_paint_data / page_size) // no. of paint page = 3
+#define paint_addr_end (paint_addr_begin + 8 * sizeof_paint_data_aspage - 1) // paint page end at addr = 31
+#define paint_page_no (0 * sizeof_paint_data_aspage) //no = 0
+#define paint_page_no_max (8 * sizeof_paint_data_aspage) //size = 24
+#define num_paint_saves (paint_page_no_max / sizeof_paint_data_aspage) //size = 8
+#define opcode_addr_begin (paint_addr_end + paint_page_no_max - 1) //addr = 54
+#define sizeof_opcode_data 64 //size = 64
+#define sizeof_opcode_data_aspage (sizeof_opcode_data / page_size) // size = 1
+#define opcode_addr_end (opcode_addr_begin + 8 * sizeof_paint_data_aspage - 1) //addr = 61
+#define opcode_page_no (0 * sizeof_opcode_data_aspage) //no = 8
+#define opcode_page_no_max (8 * sizeof_opcode_data_aspage) //size = 8
+#define matrix_hori 16
+#define app_icon_page_no (0 * sizeof_paint_data_aspage) //no = 0
+#define app_icon_page_no_max (8 * sizeof_paint_data_aspage) //size = 24
+#define delay 1000
+#define SCORE_START_ADDR 0x0000
+// initialize file storage structure for 32kb/512pages
+// first 8 pages are used for status
+void init_storage(void);
+void save_paint(uint16_t paint_no, color_t * data, uint8_t is_icon);    // save paint data to eeprom, paint 0 stored in page ?? (out of page 0 to 511)
+void load_paint(uint16_t paint_no, color_t * data, uint8_t is_icon);    // load paint data from eeprom, paint 0 stored in page ?? (out of page 0 to 511)
+void set_page_status(uint16_t page_no, uint8_t status); // set page status to 0 or 1
+void reset_storage(void);   // reset to default storage status
+void print_status_storage(void);    // print storage data to console
+uint8_t is_page_used(uint16_t page_no); // check if page[x] is already used
+uint8_t is_storage_initialized(void);   // check if already initialized data, aka init_status_data is set
+// save opcode data to eeprom, paint 0 stored in page ?? (out of page 0 to 511)
+void save_opCode(uint16_t opcode_no, uint8_t * data);
+void load_opCode(uint16_t opcode_no, uint8_t * data);
+
+
+uint16_t calculate_page_no(uint16_t paint_no, uint8_t is_icon);
+void any_paint_exist(uint8_t * paint_exist);
+void any_opcode_exist(uint8_t * opcode_exist);
+void erase_all_paint_saves(void);
+
+
 
 typedef struct snakePartDir {
     char part;      // 'h'=head, 'b'=body, 't'=tail, 'a'=apple, '0'=empty
@@ -36,7 +88,7 @@ uint8_t currentScoreIndex = 0;
 bool gameOver;
 bool game_regime = false;
 uint16_t speedCounter = 0;
-uint16_t Score_start_adress = 0x0008;
+
 
 // Generate a new apple at random empty position
 void generate_apple(void) {
@@ -196,121 +248,7 @@ void show_score_history() {
         WS2812BSimpleSend(LED_PINS, (uint8_t *)led_array, NUM_LEDS * 3);
         Delay_Ms(300);
     }
-}
-void show_score(uint8_t score, color_t color) {
-    clear();
-    const uint8_t tenth = score / 10;
-    const uint8_t unit = score % 10;
-
-    // Show tens digit on left, units on right
-    if(tenth > 0) {
-        font_draw(font_list[tenth], color, 4);
-    }
-    font_draw(font_list[unit], color, 0);
-    WS2812BSimpleSend(LED_PINS, (uint8_t *)led_array, NUM_LEDS * 3);
-}
-
-/* ********************************************************************
-* *********************************************************************
-***********************EEPROM handling*********************************
- * *********************************************************************
- * *********************************************************************
- */
-void I2C_Init_Config(void)
-{
-    RCC->APB2PCENR |= RCC_APB2Periph_GPIOA;    // Enable GPIOA clock
-    RCC->APB1PCENR |= RCC_APB1Periph_I2C1;     // Enable I2C1 clock
-
-    // PA1 = I2C1_SCL, PA2 = I2C1_SDA
-    GPIOA->CFGLR &= ~((0xF << (4 * 1)) | (0xF << (4 * 2))); // Clear PA1/PA2
-    GPIOA->CFGLR |= ((0xB << (4 * 1)) | (0xB << (4 * 2)));  // Set as AF Open-Drain
-
-    I2C1->CTLR1 |= I2C_CTLR1_SWRST;      // Reset I2C1
-    I2C1->CTLR1 &= ~I2C_CTLR1_SWRST;     // Release reset
-
-    I2C1->CTLR2 = 36;                    // 36 MHz PCLK1
-    I2C1->CKCFGR = 180;                  // 100kHz @36MHz (check datasheet for exact value)
-    I2C1->OADDR1 = 0;                    // Own address not used as master
-    I2C1->CTLR1 |= I2C_CTLR1_PE;         // Enable I2C1
-}
-void AT24C256_WriteByte(uint16_t mem_addr, uint8_t data)
-{
-    // Wait until I2C not busy
-    while (I2C1->STAR2 & I2C_STAR2_BUSY);
-
-    I2C1->CTLR1 |= I2C_CTLR1_START; // Generate START
-    while (!(I2C1->STAR1 & I2C_STAR1_SB));
-    I2C1->DATAR = (AT24C256_ADDR << 1) | 0; // Write address
-    while (!(I2C1->STAR1 & I2C_STAR1_ADDR));
-    (void)I2C1->STAR2;
-
-    I2C1->DATAR = (mem_addr >> 8) & 0xFF; // High byte
-    while (!(I2C1->STAR1 & I2C_STAR1_TXE));
-    I2C1->DATAR = mem_addr & 0xFF;        // Low byte
-    while (!(I2C1->STAR1 & I2C_STAR1_TXE));
-    I2C1->DATAR = data;
-    while (!(I2C1->STAR1 & I2C_STAR1_TXE));
-
-    I2C1->CTLR1 |= I2C_CTLR1_STOP;
-    for (volatile int wait = 0; wait < 50000; ++wait); // Wait for EEPROM write cycle (max 5ms)
-}
-
-uint8_t AT24C256_ReadByte(uint16_t mem_addr)
-{
-    uint8_t data;
-
-    while (I2C1->STAR2 & I2C_STAR2_BUSY);
-
-    // Send memory address
-    I2C1->CTLR1 |= I2C_CTLR1_START;
-    while (!(I2C1->STAR1 & I2C_STAR1_SB));
-    I2C1->DATAR = (AT24C256_ADDR << 1) | 0; // Write mode
-    while (!(I2C1->STAR1 & I2C_STAR1_ADDR));
-    (void)I2C1->STAR2;
-    I2C1->DATAR = (mem_addr >> 8) & 0xFF;
-    while (!(I2C1->STAR1 & I2C_STAR1_TXE));
-    I2C1->DATAR = mem_addr & 0xFF;
-    while (!(I2C1->STAR1 & I2C_STAR1_TXE));
-
-    // Repeated start
-    I2C1->CTLR1 |= I2C_CTLR1_START;
-    while (!(I2C1->STAR1 & I2C_STAR1_SB));
-    I2C1->DATAR = (AT24C256_ADDR << 1) | 1; // Read mode
-    while (!(I2C1->STAR1 & I2C_STAR1_ADDR));
-    (void)I2C1->STAR2;
-
-    I2C1->CTLR2 |= I2C_CTLR2_LAST; // Single byte read
-    I2C1->CTLR1 &= ~I2C_CTLR1_ACK; // NACK after receive
-
-    while (!(I2C1->STAR1 & I2C_STAR1_RXNE));
-    data = I2C1->DATAR;
-
-    I2C1->CTLR1 |= I2C_CTLR1_STOP;
-
-    I2C1->CTLR1 |= I2C_CTLR1_ACK; // Re-enable ACK for next communication
-
-    return data;
-}
-void save_all_scores() {
-    uint16_t addr = Score_start_adress;
-    for(uint8_t i = 0;i<MAX_SCORES;i++){
-        AT24C256_WriteByte(addr, score);
-        addr = addr++;
-    }
-}
-
-// Load all scores from EEPROM
-void load_all_scores() {
-    uint16_t addr = Score_start_adress;
-
-    for(uint8_t i = 0; i < MAX_SCORES; i++) {
-        scoreHistory[i] = AT24C256_ReadByte(addr);
-        addr++; // Move to next slot
-        Delay_Ms(5); // Short delay between reads
-    }
-}
-
-// Show all scores with flashing animation
+}/*
 void show_all_scores() {
     for(uint8_t i = 0; i < MAX_SCORES; i++) {
         // Flash the score position indicator
@@ -329,30 +267,145 @@ void show_all_scores() {
         Delay_Ms(300);
     }
 }
+*/
+/*
+void show_score(uint8_t score, color_t color) {
+    clear();
+    const uint8_t tenth = score / 10;
+    const uint8_t unit = score % 10;
+
+    // Show tens digit on left, units on right
+    if(tenth > 0) {
+        font_draw(font_list[tenth], color, 4);
+    }
+    font_draw(font_list[unit], color, 0);
+    WS2812BSimpleSend(LED_PINS, (uint8_t *)led_array, NUM_LEDS * 3);
+}
+*/
+/*****************************************/
+/*****************************************/
+/**************EEPROM*********************/
+/*****************************************/
+/*****************************************/
+/*****************************************/
+void init_storage(void) {
+    if (!is_storage_initialized()) {
+        reset_storage();
+        printf("Storage initialized\n");
+    }
+    else {
+        printf("Storage already initialized\n");
+    }
+}
+
+uint8_t is_storage_initialized(void) {
+    uint8_t data[init_status_reg_size];
+    i2c_read(EEPROM_ADDR, init_status_addr_begin, I2C_REGADDR_2B, data, init_status_reg_size);
+    for (uint8_t i = 0; i < init_status_reg_size; i++) {
+        if (data[i] != *(init_status_data + i)) {
+            return 0;
+        }
+    }
+    return 1;
+}
+
+void reset_storage(void) {
+    i2c_write(EEPROM_ADDR, init_status_addr_begin, I2C_REGADDR_2B, init_status_data,
+        init_status_reg_size);
+    Delay_Ms(3);
+    for (uint16_t addr = page_status_addr_begin;
+         addr < page_status_addr_begin + page_status_reg_size; addr++) {
+        i2c_write(EEPROM_ADDR, addr, I2C_REGADDR_2B, (uint8_t[]){0}, sizeof(uint8_t));
+        Delay_Ms(3);
+    }
+    printf("Storage reset\n");
+}
+
+void print_status_storage(void) {
+    printf("Status storage data:\n");
+    for (uint16_t addr = init_status_addr_begin;
+         addr < init_status_addr_begin + init_status_reg_size; addr++) {
+        uint8_t data = 0;
+        i2c_read(EEPROM_ADDR, addr, I2C_REGADDR_2B, &data, sizeof(data));
+        printf(" %d: ", addr);
+        printf(init_status_format, data);
+    }
+    printf("\n");
+    for (uint16_t addr = page_status_addr_begin;
+         addr < page_status_addr_begin + page_status_reg_size; addr++) {
+        uint8_t data = 0;
+        i2c_read(EEPROM_ADDR, addr, I2C_REGADDR_2B, &data, sizeof(data));
+        if (data) {
+            printf("%d ", addr);
+        }
+        else {
+            printf("    ");
+        }
+        if ((addr + 1) % matrix_hori == 0) {
+            printf("\n");
+        }
+    }
+    printf("\n");
+}
+
+void set_page_status(uint16_t page_no, uint8_t status) {
+    if (status > 1) {
+        printf("Invalid status %d\n", status);
+        printf("DEBUG: %d\n", __LINE__);
+        while (1)
+            ;
+    }
+    if (page_no < page_status_addr_begin || page_no > page_status_addr_end) {
+        printf("Invalid page number %d\n", page_no);
+        printf("DEBUG: %d\n", __LINE__);
+        while (1)
+            ;
+    }
+    i2c_write(EEPROM_ADDR, page_no, I2C_REGADDR_2B, &status, sizeof(status));
+    Delay_Ms(3);
+    //printf("Page %d status set to %d\n", page_no, status);
+}
+
+uint8_t is_page_used(uint16_t page_no) {
+    if (page_no < page_status_addr_begin || page_no > page_status_addr_end) {
+        printf("Invalid page number %d\n", page_no);
+        printf("DEBUG: %d\n", __LINE__);
+        while (1);
+    }
+    uint8_t data = 0;
+    i2c_read(EEPROM_ADDR, page_no, I2C_REGADDR_2B, &data, sizeof(data));
+    //printf("Page %d is %s\n", page_no, data ? "used" : "empty");
+    return data;
+}
+
+uint16_t calculate_page_no(uint16_t paint_no, uint8_t is_icon) {
+    if (is_icon==1) {
+        return (paint_no + app_icon_page_no) * sizeof_paint_data_aspage +
+               paint_addr_begin;
+    }
+    else {
+        return paint_no * sizeof_opcode_data_aspage +
+               opcode_addr_begin;
+    }
+}
+// Show all scores with flashing animation
+
 //
 // Save current score to history
-/* ********************************************************************
-* *********************************************************************
-***********************EEPROM handling end*********************************
- * *********************************************************************
- * *********************************************************************
- */
+
+
 int main(void) {
     // Initialize hardware
     SystemInit();
     ADC_init();
     JOY_setseed_default();
-    I2C_Init_Config();
-    uint8_t value = 0x5A;
-    AT24C256_WriteByte(0x0000, value);
-    Delay_Ms(5);
-    uint8_t read_val = AT24C256_ReadByte(0x0000);
+    I2C_init();
+    load_all_scores();
     // Game loop
     while(1) {
 //        load_scores();
         game_init();
         display();
-        I2C_init();
         Delay_Ms(1000); // Initial delay
 
         int8_t currentDirection = -1; // Start moving left
@@ -399,6 +452,7 @@ int main(void) {
             Delay_Ms(currentSpeed);
         }
 
+        if(gameOver) {
                    // Save the current score
                    if(currentScoreIndex < MAX_SCORES) {
                        scoreHistory[currentScoreIndex] = score;
@@ -406,7 +460,7 @@ int main(void) {
                    }
 
                    // Save all scores to EEPROM
-
+                   save_all_scores();
 
                    // Show current score with flashing
                    for(uint8_t i = 0; i < 3; i++) {
@@ -418,14 +472,11 @@ int main(void) {
                    }
 
                    // Post-game menu
-                   uint32_t timeout = 100000; // 10 second timeout
+                   uint32_t timeout = 10000; // 10 second timeout
                    while(timeout > 0) {
                        if(JOY_3_pressed()) {
                            while(JOY_3_pressed()) Delay_Ms(10);
-
-
                            show_all_scores(); // Show all saved scores
-                           save_all_scores();
                            timeout = 10000; // Reset timeout
                        }
                        else if(JOY_5_pressed()) {
@@ -436,7 +487,7 @@ int main(void) {
                        Delay_Ms(10);
                        timeout -= 10;
                    }
-
+               }
         /*
         // Game over - save and show score
         show_current_score();
