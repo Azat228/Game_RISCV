@@ -27,7 +27,7 @@
 2. Open `Snake_game.wvproj` project
 3. Click **Rebuild** to compile
 4. Connect Inspire computer via WHCLink-E
-5. Flash the compiled binary
+5. Donwload into the Inspire computer
 6. Launch the game!
 
 ## Gameplay
@@ -45,3 +45,4 @@
 - Check programmer connection if flashing fails
 
 > Note: Game may require specific Inspire hardware configuration
+
