@@ -56,6 +56,7 @@ uint8_t score_1;
 uint8_t scoreHistory_1[MAX_SCORES] = {0};
 uint8_t currentScoreIndex_1 = 0;
 bool gameOver_1 = false;
+bool exit = false;
 /***************************************************************************/
 /***************************************************************************/
 /***************************SNAKE Game**************************************/
@@ -252,9 +253,10 @@ void display_1(void) {
         for (int x = 0; x < GRID_SIZE; x++) {
             int i = IDX(x, y);
             switch (gameBoard_1[i].part) {
-                case 'x': set_color(i, brickColor); break;
-                case 'p': set_color(i, paddleColor); break;
-                case 'b': set_color(i, ballColor); break;
+                case 'x': set_color(i, brickColor); break;//brick
+                case 'p': set_color(i, paddleColor); break;//paddle
+                case 'b': set_color(i, ballColor); break;//ball
+                case '0': set_color(i, blankColor); break;//blank
                 default: set_color(i, blankColor); break;
             }
         }
@@ -265,18 +267,18 @@ void display_1(void) {
 void breakout_init(void) {
     clear_board_1();
     // Place bricks
-    for (int y = 0; y < BRICK_ROWS; y++)
+    for (int y = 8; y >= 8-BRICK_ROWS; y--)
         for (int x = 0; x < GRID_SIZE; x++)
             gameBoard_1[IDX(x, y)].part = 'x';
     // Place paddle (bottom row)
     paddleX = 3;
     for (int x = paddleX; x < paddleX + PADDLE_WIDTH; x++)
-        gameBoard_1[IDX(x, GRID_SIZE - 1)].part = 'p';
+        gameBoard_1[IDX(x, 0)].part = 'p';
     // Place ball (above paddle, center)
     ball.x = 4;
-    ball.y = GRID_SIZE - 2;
+    ball.y = 2;
     ball.dx = 1;
-    ball.dy = -1;
+    ball.dy = 1;
     gameBoard_1[IDX(ball.x, ball.y)].part = 'b';
     score_1 = 0;
     gameOver_1 = false;
@@ -285,14 +287,15 @@ void breakout_init(void) {
 void update_paddle(int8_t dir) {
     // Remove paddle from board
     for (int x = 0; x < GRID_SIZE; x++)
-        gameBoard_1[IDX(x, GRID_SIZE - 1)].part = '0';
+        gameBoard_1[IDX(x, 0)].part = '0';
     // Update paddleX
     paddleX += dir;
-    if (paddleX < 0) paddleX = 0;
-    if (paddleX > GRID_SIZE - PADDLE_WIDTH) paddleX = GRID_SIZE - PADDLE_WIDTH;
+    if (paddleX <= 0) paddleX = 0;
+    if (paddleX >=GRID_SIZE - PADDLE_WIDTH) paddleX = GRID_SIZE - PADDLE_WIDTH;
     // Draw paddle
+
     for (int x = paddleX; x < paddleX + PADDLE_WIDTH; x++)
-        gameBoard_1[IDX(x, GRID_SIZE - 1)].part = 'p';
+        gameBoard_1[IDX(x, 0)].part = 'p';
 }
 
 void save_score_1(void) {
@@ -302,8 +305,8 @@ void save_score_1(void) {
 
 void show_current_score_1(void) {
     clear();
-    const uint8_t tenth_digit = score / 10;
-    const uint8_t unit_digit = score % 10;
+    const uint8_t tenth_digit = score_1 / 10;
+    const uint8_t unit_digit = score_1 % 10;
     font_draw(font_list[tenth_digit], scoreColor, 4);
     font_draw(font_list[unit_digit], scoreColor, 0);
     WS2812BSimpleSend(LED_PINS, (uint8_t *)led_array, NUM_LEDS * 3);
@@ -340,19 +343,19 @@ void move_ball(void) {
         nx = ball.x + ball.dx;
     }
     // Ceiling bounce
-    if (ny < 0) {
+    if (ny == 8) {
         ball.dy *= -1;
         ny = ball.y + ball.dy;
     }
     // Brick collision
-    if (ny < BRICK_ROWS && gameBoard_1[IDX(nx, ny)].part == 'x') {
+    if (ny > 8-BRICK_ROWS && gameBoard_1[IDX(nx, ny)].part == 'x') {
         gameBoard_1[IDX(nx, ny)].part = '0';
         ball.dy *= -1;
         ny = ball.y + ball.dy;
         score_1++;
     }
     // Paddle collision
-    if (ny == GRID_SIZE - 1) {
+    if (ny == 0) {
         if (nx >= paddleX && nx < paddleX + PADDLE_WIDTH) {
             ball.dy *= -1;
             ny = ball.y + ball.dy;
@@ -372,7 +375,7 @@ void move_ball(void) {
 
 bool bricks_remaining(void) {
     for (int i = 0; i < GRID_SIZE * BRICK_ROWS; i++)
-        if (gameBoard_1[i].part == 'x')
+        if (gameBoard_1[(64-i)].part == 'x')
             return true;
     return false;
 }
@@ -469,13 +472,13 @@ while(1){
                  Delay_Ms(1000);
 
                  int16_t speed = INITIAL_SPEED;
-                 while (!gameOver) {
+                 while (!gameOver_1) {
                      // Move paddle
-                     if (JOY_4_pressed() && paddleX > 0) {
+                     if (JOY_4_pressed() && paddleX < GRID_SIZE - PADDLE_WIDTH) {
                          update_paddle(1);
                          while (JOY_4_pressed()) Delay_Ms(5);
                      }
-                     if (JOY_6_pressed() && paddleX < GRID_SIZE - PADDLE_WIDTH) {
+                     if (JOY_6_pressed() && paddleX >0 ) {
                          update_paddle(-1);
                          while (JOY_6_pressed()) Delay_Ms(5);
                      }
@@ -495,7 +498,7 @@ while(1){
                  // Game Over
                  save_score_1();
                  show_current_score_1();
-                 Delay_Ms(2000);
+                 Delay_Ms(200);
 
                  // Wait for action
                  while (1) {
@@ -503,13 +506,20 @@ while(1){
                          while (JOY_7_pressed()) Delay_Ms(10);
                          show_score_history_1();
                          Delay_Ms(800);
+                         break;
                      }
                      if (JOY_5_pressed()) {
                          while (JOY_5_pressed()) Delay_Ms(10);
                          break;
                      }
                      Delay_Ms(10);
+                     if (JOY_8_pressed()) {
+                            while (JOY_8_pressed()) Delay_Ms(10);
+                            exit = true;
+                            break;
+                     }
                  }
+
 
  }
 }
