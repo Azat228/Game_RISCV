@@ -43,7 +43,7 @@
 #define app_icon_page_no (0 * sizeof_paint_data_aspage) //no = 0
 #define app_icon_page_no_max (8 * sizeof_paint_data_aspage) //size = 24
 #define delay 1000
-#define SCORE_START_ADDR 0x0000
+#define SCORE_START_ADDR 0x0008
 // initialize file storage structure for 32kb/512pages
 // first 8 pages are used for status
 void init_storage(void);
@@ -241,14 +241,128 @@ void show_score_history() {
         Delay_Ms(300);
     }
 }
-void save_currentScore_EEPROM(uint8_t Saved_value){
-
-
-
-}
 void reset_all_scores(void){
     printf("All scores are reseted");
     reset_storage();
+}
+// Save the current score to EEPROM
+void save_currentScore_EEPROM(uint8_t score) {
+    // Find the first empty slot or overwrite the oldest score
+    uint8_t slot = 0;
+    uint8_t found_empty = 0;
+
+    // Try to find an empty slot (score = 0)
+    for (uint8_t i = 0; i < MAX_SCORES; i++) {
+        if (scoreHistory[i] == 0) {
+            slot = i;
+            found_empty = 1;
+            break;
+        }
+    }
+
+    // If no empty slots, find the smallest score to overwrite
+    if (!found_empty) {
+        uint8_t min_score = 255;
+        for (uint8_t i = 0; i < MAX_SCORES; i++) {
+            if (scoreHistory[i] < min_score) {
+                min_score = scoreHistory[i];
+                slot = i;
+            }
+        }
+    }
+
+    // Only save if the new score is higher than the existing one
+    if (score > scoreHistory[slot]) {
+        scoreHistory[slot] = score;
+
+        // Calculate EEPROM address for this score (2 bytes per score)
+        uint16_t addr = SCORE_START_ADDR + (slot * SCORE_SIZE);
+
+        // Prepare data to write (index + score)
+        uint8_t data[SCORE_SIZE] = {slot, score};
+
+        // Write to EEPROM
+        i2c_write(EEPROM_ADDR, addr, I2C_REGADDR_2B, data, SCORE_SIZE);
+        Delay_Ms(3); // EEPROM write delay
+
+        printf("Score %d saved to slot %d at addr %d\n", score, slot, addr);
+    }
+}
+void load_scores(void) {
+    // Clear current score history
+    for (uint8_t i = 0; i < MAX_SCORES; i++) {
+        scoreHistory[i] = 0;
+    }
+
+    currentScoreIndex = 0;
+
+    // Read all score slots
+    for (uint8_t i = 0; i < MAX_SCORES; i++) {
+        uint16_t addr = SCORE_START_ADDR + (i * SCORE_SIZE);
+        uint8_t data[SCORE_SIZE];
+
+        i2c_read(EEPROM_ADDR, addr, I2C_REGADDR_2B, data, SCORE_SIZE);
+
+        // Validate the data (index should match slot)
+        if (data[0] == i && data[1] != 0) {
+            scoreHistory[i] = data[1];
+            currentScoreIndex++;
+        }
+    }
+
+    printf("Loaded %d scores from EEPROM\n", currentScoreIndex);
+}
+void reveal_all_scores(void) {
+    // Load scores from EEPROM first to ensure we have current data
+    load_scores();
+
+    // Clear the display
+    clear();
+    WS2812BSimpleSend(LED_PINS, (uint8_t *)led_array, NUM_LEDS * 3);
+    Delay_Ms(500);
+
+    // Display each score with its position
+    for (uint8_t i = 0; i < MAX_SCORES; i++) {
+        if (scoreHistory[i] == 0) continue; // Skip empty slots
+
+        // First show which score this is (1-10)
+        clear();
+        set_color(63, scoreColor); // Indicator LED for score position
+
+        // Display position number (1-10) on right side
+        if (i < 9) {
+            // Positions 1-9 (display single digit)
+            font_draw(font_list[i+1], scoreColor, 0); // +1 because positions start at 1
+        } else {
+            // Position 10 (special case)
+            font_draw(font_list[1], scoreColor, 4); // '1'
+            font_draw(font_list[0], scoreColor, 0);  // '0'
+        }
+        WS2812BSimpleSend(LED_PINS, (uint8_t *)led_array, NUM_LEDS * 3);
+        Delay_Ms(1000);
+
+        // Then show the actual score value
+        clear();
+        const uint8_t tenth_digit = scoreHistory[i] / 10;
+        const uint8_t unit_digit = scoreHistory[i] % 10;
+
+        // Display score value
+        if (tenth_digit > 0) {
+            font_draw(font_list[tenth_digit], scoreColor, 4); // Tens place
+        }
+        font_draw(font_list[unit_digit], scoreColor, 0);      // Units place
+        WS2812BSimpleSend(LED_PINS, (uint8_t *)led_array, NUM_LEDS * 3);
+        Delay_Ms(1500);
+
+        // Brief pause between scores
+        clear();
+        WS2812BSimpleSend(LED_PINS, (uint8_t *)led_array, NUM_LEDS * 3);
+        Delay_Ms(300);
+    }
+
+    // Final clear
+    clear();
+    WS2812BSimpleSend(LED_PINS, (uint8_t *)led_array, NUM_LEDS * 3);
 }
 /*****************************************/
 /*****************************************/
@@ -418,6 +532,7 @@ int main(void) {
     printf("Lets start debug\n");
     i2c_init();
     init_storage();
+    load_scores(); // Load saved scores at startup
     JOY_sound(1000, 100);
     // Game loop
     while(1) {
@@ -471,11 +586,15 @@ int main(void) {
         }
 
         if(gameOver) {
+
                    // Save the current score
                    if(currentScoreIndex < MAX_SCORES) {
                        scoreHistory[currentScoreIndex] = score;
                        currentScoreIndex++;
                    }
+
+                   // Save to EEPROM
+                   save_currentScore_EEPROM(score);
 
                    // Save all scores to EEPROM
 
@@ -500,6 +619,11 @@ int main(void) {
                        else if(JOY_5_pressed()) {
                            while(JOY_5_pressed()) Delay_Ms(10);
                            break; // Restart game
+                       }
+                       if (JOY_9_pressed()) {
+                           while(JOY_9_pressed()) Delay_Ms(10); // Debounce
+                           reveal_all_scores();
+                           Delay_Ms(500); // Prevent immediate re-trigger
                        }
 
                        Delay_Ms(10);
