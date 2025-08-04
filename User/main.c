@@ -57,6 +57,7 @@ uint8_t scoreHistory_1[MAX_SCORES] = {0};
 uint8_t currentScoreIndex_1 = 0;
 bool gameOver_1 = false;
 bool exit = false;
+uint8_t number_of_blocks(void);
 /***************************************************************************/
 /***************************************************************************/
 /***************************SNAKE Game**************************************/
@@ -299,6 +300,7 @@ void update_paddle(int8_t dir) {
 }
 
 void save_score_1(void) {
+    score_1 = 16-number_of_blocks();
     scoreHistory_1[currentScoreIndex] = score_1;
     currentScoreIndex = (currentScoreIndex + 1) % MAX_SCORES;
 }
@@ -352,7 +354,6 @@ void move_ball(void) {
         gameBoard_1[IDX(nx, ny)].part = '0';
         ball.dy *= -1;
         ny = ball.y + ball.dy;
-        score_1++;
     }
     // Paddle collision
     if (ny == 0) {
@@ -372,7 +373,19 @@ void move_ball(void) {
     ball.y = ny;
     gameBoard_1[IDX(ball.x, ball.y)].part = 'b';
 }
+uint8_t number_of_blocks(void) {
+    uint8_t local_score = 0;
+    const uint8_t total_bricks = GRID_SIZE * BRICK_ROWS;
+    const uint8_t start_index = GRID_SIZE * GRID_SIZE - 1; // Last index (63 for 8x8 grid)
 
+    // Calculate destroyed bricks (where part == '0')
+    for(int i = 0; i < total_bricks; i++) {
+        if (gameBoard_1[start_index - i].part == 'x') {
+            local_score++;
+        }
+    }
+    return local_score;
+}
 bool bricks_remaining(void) {
     for (int i = 0; i < GRID_SIZE * BRICK_ROWS; i++)
         if (gameBoard_1[(64-i)].part == 'x')
@@ -381,7 +394,7 @@ bool bricks_remaining(void) {
 }
 /***************************************************************************/
 /***************************************************************************/
-/***************************Brekout Game**************************************/
+/***************************Brekout Game************************************/
 /***************************************************************************/
 /***************************************************************************/
 int main(void) {
@@ -513,11 +526,6 @@ while(1){
                          break;
                      }
                      Delay_Ms(10);
-                     if (JOY_8_pressed()) {
-                            while (JOY_8_pressed()) Delay_Ms(10);
-                            exit = true;
-                            break;
-                     }
                  }
 
 
