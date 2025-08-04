@@ -241,6 +241,15 @@ void show_score_history() {
         Delay_Ms(300);
     }
 }
+void save_currentScore_EEPROM(uint8_t Saved_value){
+
+
+
+}
+void reset_all_scores(void){
+    printf("All scores are reseted");
+    reset_storage();
+}
 /*****************************************/
 /*****************************************/
 /**************EEPROM*********************/
@@ -394,14 +403,22 @@ void load_paint(uint16_t paint_no, color_t * data, uint8_t is_icon) {
 
 //
 // Save current score to history
-
-
+/*****************************************/
+/*****************************************/
+/**************EEPROM*********************/
+/*****************************************/
+/*****************************************/
+/*****************************************/
+//Sorry for shit code:(, especially part with EEPROM
 int main(void) {
     // Initialize hardware
     SystemInit();
     ADC_init();
     JOY_setseed_default();
+    printf("Lets start debug\n");
+    i2c_init();
     init_storage();
+    JOY_sound(1000, 100);
     // Game loop
     while(1) {
 //        load_scores();
@@ -477,7 +494,7 @@ int main(void) {
                    while(timeout > 0) {
                        if(JOY_3_pressed()) {
                            while(JOY_3_pressed()) Delay_Ms(10);
-
+                           reset_all_scores();
                            timeout = 10000; // Reset timeout
                        }
                        else if(JOY_5_pressed()) {
@@ -489,50 +506,6 @@ int main(void) {
                        timeout -= 10;
                    }
                }
-        /*
-        // Game over - save and show score
-        show_current_score();
-        save_score();
-
-        Delay_Ms(2000);
-
-        // Wait for button press
-        while(1) {
-
-            // Show current score with flashing effect
-            for(uint8_t i = 0; i < 3; i++) {
-                show_current_score();
-                Delay_Ms(300);
-                clear();
-                WS2812BSimpleSend(LED_PINS, (uint8_t *)led_array, NUM_LEDS * 3);
-                Delay_Ms(200);
-            }
-            show_current_score();
-
-            // More responsive button polling
-            uint32_t timeout = 5000; // 5 second timeout
-            while(timeout > 0) {
-                if(JOY_7_pressed()) {
-                    while(JOY_7_pressed()) Delay_Ms(10);
-                    show_score_history();
-                    timeout = 5000; // Reset timeout
-                }
-                else if(JOY_5_pressed()) {
-                    while(JOY_5_pressed()) Delay_Ms(10);
-                    break; // Exit to restart game
-                }
-
-                Delay_Ms(10);
-                timeout -= 10;
-            }
-
-            // If we get here, either timeout or button press
-            break; // Restart game
-
-        }
-    */
     }
-
-
     return 0;
 }
