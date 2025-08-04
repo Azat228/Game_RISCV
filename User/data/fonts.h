@@ -5,7 +5,10 @@
 
 #define font_width 3
 #define font_height 5
+#define Player_width 8
+#define Player_height 3
 #define font_size (font_width * font_height)
+#define player_size (Player_width * Player_height)
 
 // clang-format off
 
@@ -92,6 +95,18 @@ const uint8_t font_D[font_size] = {
     1,0,1,
     1,0,1,
     1,1,0};
+const uint8_t Player_1[font_size] = {
+        1,0,0,1,1,1,0,0,
+        1,1,1,1,1,1,1,1,
+        1,1,1,1,1,1,1,1};
+const uint8_t Player_2[font_size] = {
+        0,1,0,1,1,0,1,0,
+        1,0,1,1,1,1,0,1,
+        1,0,1,1,1,1,0,1};
+const uint8_t Player_3[font_size] = {
+        1,1,0,1,1,1,1,0,
+        1,0,0,1,0,1,0,0,
+        1,1,0,1,1,1,1,0};
 
 // clang-format on
 
