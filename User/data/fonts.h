@@ -132,3 +132,20 @@ static inline void font_draw(const uint8_t font[], color_t color, int startpos) 
         }
     }
 }
+static inline void Player_draw(const uint8_t font[], color_t color, int startpos) {
+    // insert the font_width*font_height font to the led_array
+    // which has horizontalButtons*verticalButtons leds
+    if (startpos < 0 || startpos >= NUM_LEDS ||
+        startpos % horizontalButtons + font_width > horizontalButtons ||
+        startpos / horizontalButtons + font_height > verticalButtons) {
+        return;
+    }
+    for (int i = 0; i < player_size; i++) {
+        if (font[i]) {
+            int x = (player_size - i - 1) % Player_width;
+            int y = (player_size - i - 1) / Player_width;
+            int pos = startpos + x + y * horizontalButtons;
+            set_color(pos, color);
+        }
+    }
+}
