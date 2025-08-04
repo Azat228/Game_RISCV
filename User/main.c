@@ -55,15 +55,7 @@ void print_status_storage(void);    // print storage data to console
 uint8_t is_page_used(uint16_t page_no); // check if page[x] is already used
 uint8_t is_storage_initialized(void);   // check if already initialized data, aka init_status_data is set
 // save opcode data to eeprom, paint 0 stored in page ?? (out of page 0 to 511)
-void save_opCode(uint16_t opcode_no, uint8_t * data);
-void load_opCode(uint16_t opcode_no, uint8_t * data);
-
-
 uint16_t calculate_page_no(uint16_t paint_no, uint8_t is_icon);
-void any_paint_exist(uint8_t * paint_exist);
-void any_opcode_exist(uint8_t * opcode_exist);
-void erase_all_paint_saves(void);
-
 
 
 typedef struct snakePartDir {
@@ -248,40 +240,7 @@ void show_score_history() {
         WS2812BSimpleSend(LED_PINS, (uint8_t *)led_array, NUM_LEDS * 3);
         Delay_Ms(300);
     }
-}/*
-void show_all_scores() {
-    for(uint8_t i = 0; i < MAX_SCORES; i++) {
-        // Flash the score position indicator
-        set_color(63, scoreColor);
-        set_color(62, scoreColor);
-        WS2812BSimpleSend(LED_PINS, (uint8_t *)led_array, NUM_LEDS * 3);
-        Delay_Ms(200);
-
-        // Display the score
-        show_score(scoreHistory[i], scoreColor);
-        Delay_Ms(1500);
-
-        // Clear before next score
-        clear();
-        WS2812BSimpleSend(LED_PINS, (uint8_t *)led_array, NUM_LEDS * 3);
-        Delay_Ms(300);
-    }
 }
-*/
-/*
-void show_score(uint8_t score, color_t color) {
-    clear();
-    const uint8_t tenth = score / 10;
-    const uint8_t unit = score % 10;
-
-    // Show tens digit on left, units on right
-    if(tenth > 0) {
-        font_draw(font_list[tenth], color, 4);
-    }
-    font_draw(font_list[unit], color, 0);
-    WS2812BSimpleSend(LED_PINS, (uint8_t *)led_array, NUM_LEDS * 3);
-}
-*/
 /*****************************************/
 /*****************************************/
 /**************EEPROM*********************/
@@ -388,6 +347,49 @@ uint16_t calculate_page_no(uint16_t paint_no, uint8_t is_icon) {
                opcode_addr_begin;
     }
 }
+void save_paint(uint16_t paint_no, color_t * data, uint8_t is_icon) {
+    if (paint_no < 0 || paint_no > paint_addr_end) {
+        printf("Invalid paint number %d\n", paint_no);
+        printf("DEBUG: %d\n", __LINE__);
+        while (1)
+            ;
+    }
+    uint16_t page_no_start = calculate_page_no(paint_no, is_icon);
+    for (uint16_t i = page_no_start; i < page_no_start + sizeof_paint_data_aspage; i++) {
+        if (is_page_used(i)) {
+            printf("Paint %d already used, overwriting\n", paint_no);
+            Delay_Ms(500);
+        }
+        set_page_status(i, 1);
+    }
+    i2c_result_e err = i2c_write_pages(EEPROM_ADDR, page_no_start * page_size,
+        I2C_REGADDR_2B, (uint8_t *)data, sizeof_paint_data);
+    printf("Save paint result: %d\n", err);
+    Delay_Ms(3);
+    printf("Paint %d saved\n", paint_no);
+}
+void load_paint(uint16_t paint_no, color_t * data, uint8_t is_icon) {
+    if (paint_no < 0 || paint_no > paint_addr_end) {
+        printf("Invalid paint number %d\n", paint_no);
+        printf("DEBUG: %d\n", __LINE__);
+        while (1)
+            ;
+    }
+    uint16_t page_no_start = calculate_page_no(paint_no, is_icon);
+    printf("Loading paint_no %d from page %d, is_icon: %d\n", paint_no, page_no_start,
+        is_icon);
+    if (!is_page_used(page_no_start)) {
+        printf("Paint %d not found\n", paint_no);
+        printf("DEBUG: %d\n", __LINE__);
+        while (1)
+            ;
+    }
+    i2c_result_e err = i2c_read_pages(EEPROM_ADDR, page_no_start * page_size,
+        I2C_REGADDR_2B, (uint8_t *)data, sizeof_paint_data);
+    printf("Load paint result: %d\n", err);
+    Delay_Ms(3);
+    printf("Paint %d loaded\n", paint_no);
+}
 // Show all scores with flashing animation
 
 //
@@ -399,8 +401,7 @@ int main(void) {
     SystemInit();
     ADC_init();
     JOY_setseed_default();
-    I2C_init();
-    load_all_scores();
+    init_storage();
     // Game loop
     while(1) {
 //        load_scores();
@@ -460,7 +461,7 @@ int main(void) {
                    }
 
                    // Save all scores to EEPROM
-                   save_all_scores();
+
 
                    // Show current score with flashing
                    for(uint8_t i = 0; i < 3; i++) {
@@ -476,7 +477,7 @@ int main(void) {
                    while(timeout > 0) {
                        if(JOY_3_pressed()) {
                            while(JOY_3_pressed()) Delay_Ms(10);
-                           show_all_scores(); // Show all saved scores
+
                            timeout = 10000; // Reset timeout
                        }
                        else if(JOY_5_pressed()) {
