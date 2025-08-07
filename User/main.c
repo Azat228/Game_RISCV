@@ -210,9 +210,15 @@ void show_current_score() {
     const uint8_t unit_digit = score % 10;
 
     // Display digits side by side
-    font_draw(font_list[tenth_digit], scoreColor, 4);
-    font_draw(font_list[unit_digit], scoreColor, 0);
+//    font_draw(font_list[tenth_digit], scoreColor, 4);
+    for(int i = 0; i<26;i++){
+    Letter_draw(Letter_List[i], scoreColor, 0);
+
     WS2812BSimpleSend(LED_PINS, (uint8_t *)led_array, NUM_LEDS * 3);
+    Delay_Ms(1000);
+    clear();
+    }
+
 }
 
 // Display score history
@@ -241,6 +247,11 @@ void show_score_history() {
         Delay_Ms(300);
     }
 }
+/***********************************/
+/***********************************/
+/*****EEPROM Scores Handling********/
+/***********************************/
+/***********************************/
 void reset_all_scores(void){
     printf("All scores are reseted");
     reset_storage();
@@ -364,6 +375,12 @@ void reveal_all_scores(void) {
     clear();
     WS2812BSimpleSend(LED_PINS, (uint8_t *)led_array, NUM_LEDS * 3);
 }
+/***********************************/
+/***********************************/
+/*****EEPROM Scores Handling********/
+/***********************************/
+/***********************************/
+
 /*****************************************/
 /*****************************************/
 /**************EEPROM*********************/
