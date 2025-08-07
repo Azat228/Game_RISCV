@@ -95,15 +95,15 @@ const uint8_t font_D[font_size] = {
     1,0,1,
     1,0,1,
     1,1,0};
-const uint8_t Player_1[font_size] = {
-        1,0,0,1,1,1,0,0,
-        1,1,1,1,1,1,1,1,
-        1,1,1,1,1,1,1,1};
-const uint8_t Player_2[font_size] = {
+const uint8_t Player_1[player_size] = {
         0,1,0,1,1,0,1,0,
         1,0,1,1,1,1,0,1,
         1,0,1,1,1,1,0,1};
-const uint8_t Player_3[font_size] = {
+const uint8_t Player_2[player_size] = {
+        0,1,0,1,1,0,1,0,
+        1,0,1,1,1,1,0,1,
+        1,0,1,1,1,1,0,1};
+const uint8_t Player_3[player_size] = {
         1,1,0,1,1,1,1,0,
         1,0,0,1,0,1,0,0,
         1,1,0,1,1,1,1,0};
@@ -112,6 +112,7 @@ const uint8_t Player_3[font_size] = {
 
 const uint8_t * font_list[] = {font_0, font_1, font_2, font_3, font_4, font_5, font_6, font_7,
     font_8, font_9, font_X, font_D};
+const uint8_t * player_list[] = {Player_1,Player_2,Player_3};
 
 const int num_fonts = sizeof(font_list) / sizeof(font_list[0]);
 
@@ -136,15 +137,16 @@ static inline void Player_draw(const uint8_t font[], color_t color, int startpos
     // insert the font_width*font_height font to the led_array
     // which has horizontalButtons*verticalButtons leds
     if (startpos < 0 || startpos >= NUM_LEDS ||
-        startpos % horizontalButtons + font_width > horizontalButtons ||
+        startpos %
+        horizontalButtons + font_width > horizontalButtons ||
         startpos / horizontalButtons + font_height > verticalButtons) {
         return;
     }
     for (int i = 0; i < player_size; i++) {
         if (font[i]) {
-            int x = (player_size - i - 1) % Player_width;
-            int y = (player_size - i - 1) / Player_width;
-            int pos = startpos + x + y * horizontalButtons;
+            int x = (player_size-i-1)/ Player_width;
+            int y = (player_size-i-1)% Player_width;
+            int pos = startpos + y + x * horizontalButtons;
             set_color(pos, color);
         }
     }
