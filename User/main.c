@@ -211,13 +211,7 @@ void show_current_score() {
 
     // Display digits side by side
 //    font_draw(font_list[tenth_digit], scoreColor, 4);
-    for(int i = 0; i<26;i++){
-    Letter_draw(Letter_List[i], scoreColor, 0);
-
-    WS2812BSimpleSend(LED_PINS, (uint8_t *)led_array, NUM_LEDS * 3);
-    Delay_Ms(1000);
-    clear();
-    }
+    choose_name(0);
 
 }
 
@@ -247,6 +241,60 @@ void show_score_history() {
         Delay_Ms(300);
     }
 }
+/***********************************************/
+/***********************************************/
+/***************Names Hadling*******************/
+/***********************************************/
+/***********************************************/
+void choose_name(uint8_t num_name){
+    if(num_name == 0){
+        Letter_draw(Letter_List[0], scoreColor, 0);
+        WS2812BSimpleSend(LED_PINS, (uint8_t *)led_array, NUM_LEDS * 3);
+        Delay_Ms(500);
+        clear();
+        Letter_draw(Letter_List[10], scoreColor, 0);
+        WS2812BSimpleSend(LED_PINS, (uint8_t *)led_array, NUM_LEDS * 3);
+        Delay_Ms(500);
+        clear();
+        Letter_draw(Letter_List[8], scoreColor, 0);
+        WS2812BSimpleSend(LED_PINS, (uint8_t *)led_array, NUM_LEDS * 3);
+        Delay_Ms(500);
+        clear();
+        Letter_draw(Letter_List[1], scoreColor, 0);
+        WS2812BSimpleSend(LED_PINS, (uint8_t *)led_array, NUM_LEDS * 3);
+        Delay_Ms(500);
+        clear();
+    }
+
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/***********************************************/
+/***********************************************/
+/***************Names Hadling*******************/
+/***********************************************/
+/***********************************************/
 /***********************************/
 /***********************************/
 /*****EEPROM Scores Handling********/
