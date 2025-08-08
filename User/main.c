@@ -491,6 +491,83 @@ void reveal_all_scores(void) {
     clear();
     WS2812BSimpleSend(LED_PINS, (uint8_t *)led_array, NUM_LEDS * 3);
 }
+// this is shit code function that works, I will think how to rewrite
+void show_name_and_highest_score(void) {
+    uint8_t highest_score[3] = {0};  // Initialize all to 0
+
+       // Find highest score for each player
+       for (uint8_t player = 0; player < 3; player++) {
+           Identifier = player;
+           load_scores();
+
+           for (uint8_t i = 0; i < MAX_SCORES; i++) {
+               if (scoreHistory[i] > highest_score[player]) {
+                   highest_score[player] = scoreHistory[i];
+               }
+           }
+       }
+
+       // Find which player has the absolute highest score
+       uint8_t best_player = 0;
+       uint8_t the_most_highest_score = 0;
+       for (uint8_t i = 0; i < 3; i++) {
+           if (highest_score[i] > the_most_highest_score) {
+               the_most_highest_score = highest_score[i];
+               best_player = i;
+           }
+       }
+
+       // Set Identifier to the best player for display
+       Identifier = best_player;
+
+       // Clear display
+       clear();
+       WS2812BSimpleSend(LED_PINS, (uint8_t *)led_array, NUM_LEDS * 3);
+       Delay_Ms(500);
+
+       // Display player name based on best_player
+       switch(best_player) {
+           case 0: // JOHN
+               display_letter(LETTER_J, scoreColor, 500);
+               display_letter(LETTER_O, scoreColor, 500);
+               display_letter(LETTER_H, scoreColor, 500);
+               display_letter(LETTER_N, scoreColor, 500);
+               break;
+
+           case 1: // ALICE
+               display_letter(LETTER_A, scoreColor, 500);
+               display_letter(LETTER_L, scoreColor, 500);
+               display_letter(LETTER_I, scoreColor, 500);
+               display_letter(LETTER_C, scoreColor, 500);
+               display_letter(LETTER_E, scoreColor, 500);
+               break;
+
+           case 2: // KEN
+               display_letter(LETTER_K, scoreColor, 500);
+               display_letter(LETTER_E, scoreColor, 500);
+               display_letter(LETTER_N, scoreColor, 500);
+               break;
+       }
+
+       // Brief pause before showing score
+       clear();
+       Delay_Ms(500);
+
+       // Display highest score
+       const uint8_t tenth_digit = the_most_highest_score / 10;
+       const uint8_t unit_digit = the_most_highest_score % 10;
+
+       if (tenth_digit > 0) {
+           font_draw(font_list[tenth_digit], scoreColor, 4);
+       }
+       font_draw(font_list[unit_digit], scoreColor, 0);
+       WS2812BSimpleSend(LED_PINS, (uint8_t *)led_array, NUM_LEDS * 3);
+       Delay_Ms(2000);
+
+       // Clear display when done
+       clear();
+       WS2812BSimpleSend(LED_PINS, (uint8_t *)led_array, NUM_LEDS * 3);
+}
 /***********************************/
 /***********************************/
 /*****EEPROM Scores Handling********/
@@ -773,6 +850,11 @@ int main(void) {
                            while(JOY_3_pressed()) Delay_Ms(10);
                            reset_all_scores();
                            timeout = 10000; // Reset timeout
+                       }
+                       if (JOY_7_pressed()) {
+                           while(JOY_7_pressed()) Delay_Ms(10); // Debounce
+                           show_name_and_highest_score();
+                           Delay_Ms(500); // Prevent immediate re-trigger
                        }
                        else if(JOY_5_pressed()) {
                            while(JOY_5_pressed()) Delay_Ms(10);
