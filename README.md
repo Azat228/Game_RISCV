@@ -20,4 +20,6 @@ Choose your player name from the predefined options:
 ### Score Management
 - **Button 9**: View saved high scores (available after game over) for your selected name
 - **Button 3**: Erase all saved scores (reset all high scores)
+- **Button 7**: shows the highest score, and the corresponding name of a player 
+
 
