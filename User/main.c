@@ -283,7 +283,7 @@ void show_score_history() {
 /***********************************************/
 void display_letter(uint8_t letter_idx, color_t color, int delay_ms) {
     Letter_draw(Letter_List[letter_idx], color, 0);
-    WS2812BSimpleSend(LED_PINS, (uint8_t *)led_array, NUM_LEDS);
+    WS2812BSimpleSend(LED_PINS, (uint8_t *)led_array, NUM_LEDS*3);
     Delay_Ms(delay_ms);
     clear();
 }
@@ -321,7 +321,7 @@ void available_names(uint8_t num_name) {
 void display_full_message(const uint8_t* letters, uint8_t count, color_t color, uint16_t delay_ms) {
     for (uint8_t i = 0; i < count; i++) {
         Letter_draw(Letter_List[letters[i]], color, 0);
-        WS2812BSimpleSend(LED_PINS, (uint8_t *)led_array, NUM_LEDS);
+        WS2812BSimpleSend(LED_PINS, (uint8_t *)led_array, NUM_LEDS*3);
         Delay_Ms(delay_ms);
         clear();
     }
@@ -344,7 +344,7 @@ void choose_your_name(void) {
             Delay_Ms(300);  // Pause for spaces
         } else {
             Letter_draw(Letter_List[message_letters[i]], scoreColor, 0);
-            WS2812BSimpleSend(LED_PINS, (uint8_t *)led_array, NUM_LEDS);
+            WS2812BSimpleSend(LED_PINS, (uint8_t *)led_array, NUM_LEDS*3);
             Delay_Ms(300);  // Shorter delay between letters
             clear();
             Delay_Ms(50);   // Brief pause after each letter
@@ -662,30 +662,32 @@ int main(void) {
     init_storage();
     load_scores(); // Load saved scores at startup
     JOY_sound(1000, 100);
-    // choosing name
+    //choosing name
     while(1){
         choose_your_name();
-        if(JOY_1_pressed()){
-            while(JOY_1_pressed()) Delay_Ms(20);
-            available_names(0);
-            break;
-        }
-        if(JOY_2_pressed()){
-            while(JOY_2_pressed()) Delay_Ms(20);
-            available_names(1);
-            break;
-        }
-        if(JOY_3_pressed()){
-            while(JOY_3_pressed()) Delay_Ms(20);
-            available_names(2);
-            break;
-        }else{
-            continue;
-        }
+                if(JOY_1_pressed()){
+                    while(JOY_1_pressed()) Delay_Ms(20);
+                    available_names(0);
+                    break;
+                }
+                if(JOY_4_pressed()){
+                    while(JOY_4_pressed()) Delay_Ms(20);
+                    available_names(1);
+                    break;
+                }
+                if(JOY_7_pressed()){
+                    while(JOY_7_pressed()) Delay_Ms(20);
+                    available_names(2);
+                    break;
+                }else{
+                    continue;
+                }
 
     }
     // Game loop
     while(1) {
+
+
 //      load_scores();
         game_init();
         display();
