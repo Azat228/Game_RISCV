@@ -392,13 +392,13 @@ void save_currentScore_EEPROM(uint8_t score) {
             }
         }
     }
-
+    // savings different players scores to different EEPROM location
     // Only save if the new score is higher than the existing one
     if (score > scoreHistory[slot]) {
         scoreHistory[slot] = score;
 
         // Calculate EEPROM address for this score (2 bytes per score)
-        uint16_t addr = SCORE_START_ADDR + (slot * SCORE_SIZE);
+        uint16_t addr = SCORE_START_ADDR + (slot * SCORE_SIZE) + 100*Identifier;
 
         // Prepare data to write (index + score)
         uint8_t data[SCORE_SIZE] = {slot, score};
@@ -409,6 +409,11 @@ void save_currentScore_EEPROM(uint8_t score) {
 
         printf("Score %d saved to slot %d at addr %d\n", score, slot, addr);
     }
+
+
+
+
+
 }
 void load_scores(void) {
     // Clear current score history
@@ -420,7 +425,7 @@ void load_scores(void) {
 
     // Read all score slots
     for (uint8_t i = 0; i < MAX_SCORES; i++) {
-        uint16_t addr = SCORE_START_ADDR + (i * SCORE_SIZE);
+        uint16_t addr = SCORE_START_ADDR + (i * SCORE_SIZE) + 100*Identifier;
         uint8_t data[SCORE_SIZE];
 
         i2c_read(EEPROM_ADDR, addr, I2C_REGADDR_2B, data, SCORE_SIZE);
@@ -660,37 +665,38 @@ int main(void) {
     printf("Lets start debug\n");
     i2c_init();
     init_storage();
-    load_scores(); // Load saved scores at startup
     JOY_sound(1000, 100);
     //choosing name
     while(1){
-        choose_your_name();
-                if(JOY_1_pressed()){
-                    while(JOY_1_pressed()) Delay_Ms(20);
-                    available_names(0);
-                    break;
+                choose_your_name();
+                Delay_Ms(1000);
+                while(1){
+                        if(JOY_1_pressed()){
+                            while(JOY_1_pressed()) Delay_Ms(20);
+                            available_names(0);
+                            break;
+                        }else if(JOY_4_pressed()){
+                            while(JOY_4_pressed()) Delay_Ms(20);
+                            available_names(1);
+                            break;
+                        }else if(JOY_7_pressed()){
+                            while(JOY_7_pressed()) Delay_Ms(20);
+                            available_names(2);
+                            break;
+                        }
                 }
-                if(JOY_4_pressed()){
-                    while(JOY_4_pressed()) Delay_Ms(20);
-                    available_names(1);
-                    break;
-                }
-                if(JOY_7_pressed()){
-                    while(JOY_7_pressed()) Delay_Ms(20);
-                    available_names(2);
-                    break;
-                }else{
-                    continue;
-                }
+                        clear();
+                        Delay_Ms(1000);
+                        break;
 
-    }
+            }
     // Game loop
     while(1) {
-
 
 //      load_scores();
         game_init();
         display();
+        load_scores(); // Load saved scores at start of the game
         Delay_Ms(1000); // Initial delay
 
         int8_t currentDirection = -1; // Start moving left
