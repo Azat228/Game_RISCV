@@ -2,6 +2,8 @@
 #define WS2812BSIMPLE_IMPLEMENTATION
 #include <stdbool.h>
 #include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 #include "./ch32v003fun/ch32v003_i2c.h"
 #include "./data/colors.h"
 #include "./ch32v003fun/driver.h"
@@ -46,12 +48,46 @@
 #define SCORE_START_ADDR 0x0008
 // initialize file storage structure for 32kb/512pages
 // first 8 pages are used for status
+//Letters define
+#define LETTER_A  0
+#define LETTER_B  1
+#define LETTER_C  2
+#define LETTER_D  3
+#define LETTER_E  4
+#define LETTER_F  5
+#define LETTER_G  6
+#define LETTER_H  7
+#define LETTER_I  8
+#define LETTER_J  9
+#define LETTER_K  10
+#define LETTER_L  11
+#define LETTER_M  12
+#define LETTER_N  13
+#define LETTER_O  14
+#define LETTER_P  15
+#define LETTER_Q  16
+#define LETTER_R  17
+#define LETTER_S  18
+#define LETTER_T  19
+#define LETTER_U  20
+#define LETTER_v  21
+#define LETTER_W  22
+#define LETTER_X  23
+#define LETTER_Y  24
+#define LETTER_Z  25
+#define NAME_LENGTH 5
 void init_storage(void);
 void save_paint(uint16_t paint_no, color_t * data, uint8_t is_icon);    // save paint data to eeprom, paint 0 stored in page ?? (out of page 0 to 511)
 void load_paint(uint16_t paint_no, color_t * data, uint8_t is_icon);    // load paint data from eeprom, paint 0 stored in page ?? (out of page 0 to 511)
 void set_page_status(uint16_t page_no, uint8_t status); // set page status to 0 or 1
 void reset_storage(void);   // reset to default storage status
 void print_status_storage(void);    // print storage data to console
+//function prototypes for name handling
+void display_letter(uint8_t letter_idx, color_t color, int delay_ms);
+void display_full_message(const uint8_t* letters, uint8_t count, color_t color, uint16_t delay_ms);
+char* create_name(void);
+void choose_your_name(void);
+
 uint8_t is_page_used(uint16_t page_no); // check if page[x] is already used
 uint8_t is_storage_initialized(void);   // check if already initialized data, aka init_status_data is set
 // save opcode data to eeprom, paint 0 stored in page ?? (out of page 0 to 511)
@@ -80,6 +116,7 @@ uint8_t currentScoreIndex = 0;
 bool gameOver;
 bool game_regime = false;
 uint16_t speedCounter = 0;
+uint8_t Identifier = 0;// the index of the name choosed
 
 
 // Generate a new apple at random empty position
@@ -210,9 +247,10 @@ void show_current_score() {
     const uint8_t unit_digit = score % 10;
 
     // Display digits side by side
+//    font_draw(font_list[tenth_digit], scoreColor, 4);
     font_draw(font_list[tenth_digit], scoreColor, 4);
     font_draw(font_list[unit_digit], scoreColor, 0);
-    WS2812BSimpleSend(LED_PINS, (uint8_t *)led_array, NUM_LEDS * 3);
+        WS2812BSimpleSend(LED_PINS, (uint8_t *)led_array, NUM_LEDS * 3);
 }
 
 // Display score history
@@ -241,6 +279,116 @@ void show_score_history() {
         Delay_Ms(300);
     }
 }
+/***********************************************/
+/***********************************************/
+/***************Names Hadling*******************/
+/***********************************************/
+/***********************************************/
+void display_letter(uint8_t letter_idx, color_t color, int delay_ms) {
+    Letter_draw(Letter_List[letter_idx], color, 0);
+    WS2812BSimpleSend(LED_PINS, (uint8_t *)led_array, NUM_LEDS*3);
+    Delay_Ms(delay_ms);
+    clear();
+}
+// Name selection handler
+/*void available_names(uint8_t num_name) {
+    Identifier = num_name;  // Set global identifier
+
+    switch(num_name) {
+        case 0:  // "JOHN"
+            display_letter(LETTER_J, scoreColor, 500);
+            display_letter(LETTER_O, scoreColor, 500);
+            display_letter(LETTER_H, scoreColor, 500);
+            display_letter(LETTER_N, scoreColor, 500);
+            break;
+
+        case 1:  // "ALICE"
+            display_letter(LETTER_A, scoreColor, 500);
+            display_letter(LETTER_L, scoreColor, 500);
+            display_letter(LETTER_I, scoreColor, 500);
+            display_letter(LETTER_C, scoreColor, 500);
+            display_letter(LETTER_E, scoreColor, 500);
+            break;
+
+        case 2:  // "KEN"
+            display_letter(LETTER_K, scoreColor, 500);
+            display_letter(LETTER_E, scoreColor, 500);
+            display_letter(LETTER_N, scoreColor, 500);
+            break;
+
+        default:
+            // Handle invalid input
+            break;
+    }
+}
+*/
+void display_full_message(const uint8_t* letters, uint8_t count, color_t color, uint16_t delay_ms) {
+    for (uint8_t i = 0; i < count; i++) {
+        Letter_draw(Letter_List[letters[i]], color, 0);
+        WS2812BSimpleSend(LED_PINS, (uint8_t *)led_array, NUM_LEDS*3);
+        Delay_Ms(delay_ms);
+        clear();
+    }
+}
+void choose_your_name(void) {
+    // Define "CHOOSE YOUR NAME" letter sequence
+    const uint8_t message_letters[] = {
+        LETTER_C, LETTER_H, LETTER_O, LETTER_O, LETTER_S, LETTER_E,  // CHOOSE
+        255,  // Space (special value)
+        LETTER_Y, LETTER_O, LETTER_U, LETTER_R,  // YOUR
+        255,  // Space
+        LETTER_N, LETTER_A, LETTER_M, LETTER_E  // NAME
+    };
+
+    // Display each letter with animation
+    for (int i = 0; i < sizeof(message_letters); i++) {
+        if (message_letters[i] == 255) {
+            // Handle space (clear screen for longer)
+            clear();
+            Delay_Ms(300);  // Pause for spaces
+        } else {
+            Letter_draw(Letter_List[message_letters[i]], scoreColor, 0);
+            WS2812BSimpleSend(LED_PINS, (uint8_t *)led_array, NUM_LEDS*3);
+            Delay_Ms(300);  // Shorter delay between letters
+            clear();
+            Delay_Ms(50);   // Brief pause after each letter
+        }
+    }
+}
+char* create_name(void){
+    int i = 0;
+    char*new_name = malloc(NAME_LENGTH+1);
+    if (!new_name) return NULL;
+    int j = 0;
+    uint8_t letter_list[5] = {0} ;
+    while(j<NAME_LENGTH){
+        display_letter(i,scoreColor,600);
+        if(JOY_5_pressed()){
+           while(JOY_5_pressed()) Delay_Ms(20);
+           new_name[j] = Letter_List[i];
+           letter_list[j] = i;
+           j++;
+           i = 0;
+           continue;
+        }
+        i++;
+    }
+    display_full_message(letter_list, j, scoreColor, 500);
+    Identifier++;
+    return new_name;
+}
+/***********************************************/
+/***********************************************/
+/***************Names Hadling*******************/
+/***********************************************/
+/***********************************************/
+
+
+/***********************************/
+/***********************************/
+/*****EEPROM Scores Handling********/
+/***********************************/
+/***********************************/
 void reset_all_scores(void){
     printf("All scores are reseted");
     reset_storage();
@@ -270,13 +418,13 @@ void save_currentScore_EEPROM(uint8_t score) {
             }
         }
     }
-
+    // savings different players scores to different EEPROM location
     // Only save if the new score is higher than the existing one
     if (score > scoreHistory[slot]) {
         scoreHistory[slot] = score;
 
         // Calculate EEPROM address for this score (2 bytes per score)
-        uint16_t addr = SCORE_START_ADDR + (slot * SCORE_SIZE);
+        uint16_t addr = SCORE_START_ADDR + (slot * SCORE_SIZE) + 100*Identifier;
 
         // Prepare data to write (index + score)
         uint8_t data[SCORE_SIZE] = {slot, score};
@@ -288,6 +436,12 @@ void save_currentScore_EEPROM(uint8_t score) {
         printf("Score %d saved to slot %d at addr %d\n", score, slot, addr);
     }
 }
+void save_current_name( char* new_name){
+
+}
+void load_names(void){
+
+}
 void load_scores(void) {
     // Clear current score history
     for (uint8_t i = 0; i < MAX_SCORES; i++) {
@@ -298,7 +452,7 @@ void load_scores(void) {
 
     // Read all score slots
     for (uint8_t i = 0; i < MAX_SCORES; i++) {
-        uint16_t addr = SCORE_START_ADDR + (i * SCORE_SIZE);
+        uint16_t addr = SCORE_START_ADDR + (i * SCORE_SIZE) + 100*Identifier;
         uint8_t data[SCORE_SIZE];
 
         i2c_read(EEPROM_ADDR, addr, I2C_REGADDR_2B, data, SCORE_SIZE);
@@ -364,6 +518,89 @@ void reveal_all_scores(void) {
     clear();
     WS2812BSimpleSend(LED_PINS, (uint8_t *)led_array, NUM_LEDS * 3);
 }
+// this is shit code function that works, I will think how to rewrite
+void show_name_and_highest_score(void) {
+    uint8_t highest_score[3] = {0};  // Initialize all to 0
+
+       // Find highest score for each player
+       for (uint8_t player = 0; player < 3; player++) {
+           Identifier = player;
+           load_scores();
+
+           for (uint8_t i = 0; i < MAX_SCORES; i++) {
+               if (scoreHistory[i] > highest_score[player]) {
+                   highest_score[player] = scoreHistory[i];
+               }
+           }
+       }
+
+       // Find which player has the absolute highest score
+       uint8_t best_player = 0;
+       uint8_t the_most_highest_score = 0;
+       for (uint8_t i = 0; i < 3; i++) {
+           if (highest_score[i] > the_most_highest_score) {
+               the_most_highest_score = highest_score[i];
+               best_player = i;
+           }
+       }
+
+       // Set Identifier to the best player for display
+       Identifier = best_player;
+
+       // Clear display
+       clear();
+       WS2812BSimpleSend(LED_PINS, (uint8_t *)led_array, NUM_LEDS * 3);
+       Delay_Ms(500);
+
+       // Display player name based on best_player
+       switch(best_player) {
+           case 0: // JOHN
+               display_letter(LETTER_J, scoreColor, 500);
+               display_letter(LETTER_O, scoreColor, 500);
+               display_letter(LETTER_H, scoreColor, 500);
+               display_letter(LETTER_N, scoreColor, 500);
+               break;
+
+           case 1: // ALICE
+               display_letter(LETTER_A, scoreColor, 500);
+               display_letter(LETTER_L, scoreColor, 500);
+               display_letter(LETTER_I, scoreColor, 500);
+               display_letter(LETTER_C, scoreColor, 500);
+               display_letter(LETTER_E, scoreColor, 500);
+               break;
+
+           case 2: // KEN
+               display_letter(LETTER_K, scoreColor, 500);
+               display_letter(LETTER_E, scoreColor, 500);
+               display_letter(LETTER_N, scoreColor, 500);
+               break;
+       }
+
+       // Brief pause before showing score
+       clear();
+       Delay_Ms(500);
+
+       // Display highest score
+       const uint8_t tenth_digit = the_most_highest_score / 10;
+       const uint8_t unit_digit = the_most_highest_score % 10;
+
+       if (tenth_digit > 0) {
+           font_draw(font_list[tenth_digit], scoreColor, 4);
+       }
+       font_draw(font_list[unit_digit], scoreColor, 0);
+       WS2812BSimpleSend(LED_PINS, (uint8_t *)led_array, NUM_LEDS * 3);
+       Delay_Ms(2000);
+
+       // Clear display when done
+       clear();
+       WS2812BSimpleSend(LED_PINS, (uint8_t *)led_array, NUM_LEDS * 3);
+}
+/***********************************/
+/***********************************/
+/*****EEPROM Scores Handling********/
+/***********************************/
+/***********************************/
+
 /*****************************************/
 /*****************************************/
 /**************EEPROM*********************/
@@ -532,13 +769,30 @@ int main(void) {
     printf("Lets start debug\n");
     i2c_init();
     init_storage();
-    load_scores(); // Load saved scores at startup
     JOY_sound(1000, 100);
+    //choosing name
+    while(1){
+                choose_your_name();
+                Delay_Ms(1000);
+                while(1){
+                        if(JOY_5_pressed()){
+                            while(JOY_5_pressed()) Delay_Ms(20);
+                            create_name();
+                            break;
+                        }
+                }
+                        clear();
+                        Delay_Ms(1000);
+                        break;
+
+            }
     // Game loop
     while(1) {
-//        load_scores();
+
+//      load_scores();
         game_init();
         display();
+        load_scores(); // Load saved scores at start of the game
         Delay_Ms(1000); // Initial delay
 
         int8_t currentDirection = -1; // Start moving left
@@ -615,6 +869,11 @@ int main(void) {
                            while(JOY_3_pressed()) Delay_Ms(10);
                            reset_all_scores();
                            timeout = 10000; // Reset timeout
+                       }
+                       if (JOY_7_pressed()) {
+                           while(JOY_7_pressed()) Delay_Ms(10); // Debounce
+                           show_name_and_highest_score();
+                           Delay_Ms(500); // Prevent immediate re-trigger
                        }
                        else if(JOY_5_pressed()) {
                            while(JOY_5_pressed()) Delay_Ms(10);

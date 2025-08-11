@@ -1,6 +1,25 @@
-# Snake Game with EEPROM Score Saving
+# Multiplayer Snake Game
+
+A classic snake game with embedded multiplayer support for up to 3 players, featuring persistent score storage in EEPROM.
+
 ## Features
--Snake game with savings past scores
+
+- Multiplayer support for 3 simultaneous players
+- Persistent high score storage in EEPROM
+- Simple name selection system
+
 ## Controls
-- **Button 9**: View saved high scores (after game over)
-- **Button 3**: Erase all saved high scores
+
+### Name Selection (At Startup)
+Choose your player name from the predefined options:
+- **Button 1**: Select name "John"
+- **Button 4**: Select name "Alice"
+- **Button 7**: Select name "Ken"
+
+
+### Score Management
+- **Button 9**: View saved high scores (available after game over) for your selected name
+- **Button 3**: Erase all saved scores (reset all high scores)
+- **Button 7**: shows the highest score, and the corresponding name of a player 
+
+
