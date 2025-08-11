@@ -2,6 +2,8 @@
 #define WS2812BSIMPLE_IMPLEMENTATION
 #include <stdbool.h>
 #include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 #include "./ch32v003fun/ch32v003_i2c.h"
 #include "./data/colors.h"
 #include "./ch32v003fun/driver.h"
@@ -73,6 +75,7 @@
 #define LETTER_X  23
 #define LETTER_Y  24
 #define LETTER_Z  25
+#define NAME_LENGTH 5
 void init_storage(void);
 void save_paint(uint16_t paint_no, color_t * data, uint8_t is_icon);    // save paint data to eeprom, paint 0 stored in page ?? (out of page 0 to 511)
 void load_paint(uint16_t paint_no, color_t * data, uint8_t is_icon);    // load paint data from eeprom, paint 0 stored in page ?? (out of page 0 to 511)
@@ -82,7 +85,7 @@ void print_status_storage(void);    // print storage data to console
 //function prototypes for name handling
 void display_letter(uint8_t letter_idx, color_t color, int delay_ms);
 void display_full_message(const uint8_t* letters, uint8_t count, color_t color, uint16_t delay_ms);
-void choose_name(uint8_t num_name);
+char* create_name(void);
 void choose_your_name(void);
 
 uint8_t is_page_used(uint16_t page_no); // check if page[x] is already used
@@ -288,7 +291,7 @@ void display_letter(uint8_t letter_idx, color_t color, int delay_ms) {
     clear();
 }
 // Name selection handler
-void available_names(uint8_t num_name) {
+/*void available_names(uint8_t num_name) {
     Identifier = num_name;  // Set global identifier
 
     switch(num_name) {
@@ -318,6 +321,7 @@ void available_names(uint8_t num_name) {
             break;
     }
 }
+*/
 void display_full_message(const uint8_t* letters, uint8_t count, color_t color, uint16_t delay_ms) {
     for (uint8_t i = 0; i < count; i++) {
         Letter_draw(Letter_List[letters[i]], color, 0);
@@ -350,6 +354,28 @@ void choose_your_name(void) {
             Delay_Ms(50);   // Brief pause after each letter
         }
     }
+}
+char* create_name(void){
+    int i = 0;
+    char*new_name = malloc(NAME_LENGTH+1);
+    if (!new_name) return NULL;
+    int j = 0;
+    uint8_t letter_list[5] = {0} ;
+    while(j<NAME_LENGTH){
+        display_letter(i,scoreColor,600);
+        if(JOY_5_pressed()){
+           while(JOY_5_pressed()) Delay_Ms(20);
+           new_name[j] = Letter_List[i];
+           letter_list[j] = i;
+           j++;
+           i = 0;
+           continue;
+        }
+        i++;
+    }
+    display_full_message(letter_list, j, scoreColor, 500);
+    Identifier++;
+    return new_name;
 }
 /***********************************************/
 /***********************************************/
@@ -409,10 +435,11 @@ void save_currentScore_EEPROM(uint8_t score) {
 
         printf("Score %d saved to slot %d at addr %d\n", score, slot, addr);
     }
+}
+void save_current_name( char* new_name){
 
-
-
-
+}
+void load_names(void){
 
 }
 void load_scores(void) {
@@ -748,17 +775,9 @@ int main(void) {
                 choose_your_name();
                 Delay_Ms(1000);
                 while(1){
-                        if(JOY_1_pressed()){
-                            while(JOY_1_pressed()) Delay_Ms(20);
-                            available_names(0);
-                            break;
-                        }else if(JOY_4_pressed()){
-                            while(JOY_4_pressed()) Delay_Ms(20);
-                            available_names(1);
-                            break;
-                        }else if(JOY_7_pressed()){
-                            while(JOY_7_pressed()) Delay_Ms(20);
-                            available_names(2);
+                        if(JOY_5_pressed()){
+                            while(JOY_5_pressed()) Delay_Ms(20);
+                            create_name();
                             break;
                         }
                 }
