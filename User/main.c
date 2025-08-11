@@ -17,7 +17,6 @@
 #define MAX_SCORES 10      // Number of high scores to keep
 #define SCORE_SIZE 2 // Each score uses 2 bytes (index + value)
 //constanst for brekout game
-#define INITIAL_SPEED 350
 #define MAX_SCORES 8
 #define PADDLE_WIDTH 2
 #define BRICK_ROWS 2
@@ -82,6 +81,8 @@
 #define LETTER_Y  24
 #define LETTER_Z  25
 #define NAME_LENGTH 5
+#define NAME_START_ADDR 0x0100  // Starting address for name storage
+#define MAX_USERS 3
 void init_storage(void);
 void save_paint(uint16_t paint_no, color_t * data, uint8_t is_icon);    // save paint data to eeprom, paint 0 stored in page ?? (out of page 0 to 511)
 void load_paint(uint16_t paint_no, color_t * data, uint8_t is_icon);    // load paint data from eeprom, paint 0 stored in page ?? (out of page 0 to 511)
@@ -380,24 +381,34 @@ void choose_your_name(void) {
 }
 char* create_name(void){
     int i = 0;
-    char*new_name = malloc(NAME_LENGTH+1);
+    char* new_name = malloc(NAME_LENGTH+1);
     if (!new_name) return NULL;
+
     int j = 0;
-    uint8_t letter_list[5] = {0} ;
-    while(j<NAME_LENGTH){
-        display_letter(i,scoreColor,600);
-        if(JOY_5_pressed()){
-           while(JOY_5_pressed()) Delay_Ms(20);
-           new_name[j] = Letter_List[i];
-           letter_list[j] = i;
-           j++;
-           i = 0;
-           continue;
+    uint8_t letter_list[5] = {0};
+
+    while(j < NAME_LENGTH) {
+        display_letter(i, scoreColor, 600);
+
+        if(JOY_5_pressed()) {
+            while(JOY_5_pressed()) Delay_Ms(20);
+            new_name[j] = Letter_List[i];
+            letter_list[j] = i;
+            j++;
+            i = 0;
+            continue;
         }
         i++;
     }
+
+    new_name[NAME_LENGTH] = '\0'; // Null-terminate
+
+    // Save the name to EEPROM
+    save_name(Identifier, new_name);
+
     display_full_message(letter_list, j, scoreColor, 500);
     Identifier++;
+
     return new_name;
 }
 /***********************************************/
@@ -447,7 +458,7 @@ void save_currentScore_EEPROM(uint8_t score) {
         scoreHistory[slot] = score;
 
         // Calculate EEPROM address for this score (2 bytes per score)
-        uint16_t addr = SCORE_START_ADDR + (slot * SCORE_SIZE) + 100*Identifier;
+        uint16_t addr = SCORE_START_ADDR + (slot * SCORE_SIZE) + 20*Identifier;
 
         // Prepare data to write (index + score)
         uint8_t data[SCORE_SIZE] = {slot, score};
@@ -459,12 +470,48 @@ void save_currentScore_EEPROM(uint8_t score) {
         printf("Score %d saved to slot %d at addr %d\n", score, slot, addr);
     }
 }
-void save_current_name( char* new_name){
+void save_name( uint8_t user_id, const char* name){
+    if (user_id >= MAX_USERS) return;
 
-}
-void load_names(void){
+    uint16_t addr = NAME_START_ADDR + (user_id * NAME_LENGTH);
+    uint8_t data[NAME_LENGTH];
 
+    // Copy name to buffer (pad with zeros if shorter than MAX_NAME_LENGTH)
+    memset(data, 0, NAME_LENGTH);
+    strncpy((char*)data, name, NAME_LENGTH-1); // Ensure null termination
+
+    // Write to EEPROM
+    i2c_write(EEPROM_ADDR, addr, I2C_REGADDR_2B, data, NAME_LENGTH);
+    Delay_Ms(5); // EEPROM write delay
+
+    printf("Name '%s' saved for user %d at addr %d\n", name, user_id, addr);
 }
+void load_name(uint8_t user_id, char* buffer) {
+    if (user_id >= MAX_USERS) {
+        buffer[0] = '\0';
+        return;
+    }
+
+    uint16_t addr = NAME_START_ADDR + (user_id * NAME_LENGTH);
+    uint8_t data[NAME_LENGTH];
+
+    // Read from EEPROM
+    i2c_read(EEPROM_ADDR, addr, I2C_REGADDR_2B, data, NAME_LENGTH);
+
+    // Copy to buffer (ensuring null termination)
+    strncpy(buffer, (char*)data, NAME_LENGTH-1);
+    buffer[NAME_LENGTH-1] = '\0';
+
+    printf("Loaded name '%s' for user %d\n", buffer, user_id);
+}
+
+// Load all names from EEPROM
+void load_all_names(char names[MAX_USERS][NAME_LENGTH]) {
+    for (uint8_t i = 0; i < MAX_USERS; i++) {
+        load_name(i, names[i]);
+    }
+}
+
 void load_scores(void) {
     // Clear current score history
     for (uint8_t i = 0; i < MAX_SCORES; i++) {
@@ -475,7 +522,7 @@ void load_scores(void) {
 
     // Read all score slots
     for (uint8_t i = 0; i < MAX_SCORES; i++) {
-        uint16_t addr = SCORE_START_ADDR + (i * SCORE_SIZE) + 100*Identifier;
+        uint16_t addr = SCORE_START_ADDR + (i * SCORE_SIZE) + 20*Identifier;
         uint8_t data[SCORE_SIZE];
 
         i2c_read(EEPROM_ADDR, addr, I2C_REGADDR_2B, data, SCORE_SIZE);
@@ -543,80 +590,64 @@ void reveal_all_scores(void) {
 }
 // this is shit code function that works, I will think how to rewrite
 void show_name_and_highest_score(void) {
-    uint8_t highest_score[3] = {0};  // Initialize all to 0
+    char names[MAX_USERS][NAME_LENGTH];
+    load_all_names(names);  // Load all names from EEPROM
 
-       // Find highest score for each player
-       for (uint8_t player = 0; player < 3; player++) {
-           Identifier = player;
-           load_scores();
+    uint8_t highest_score[3] = {0};
+    uint8_t best_player = 0;
+    uint8_t the_most_highest_score = 0;
 
-           for (uint8_t i = 0; i < MAX_SCORES; i++) {
-               if (scoreHistory[i] > highest_score[player]) {
-                   highest_score[player] = scoreHistory[i];
-               }
-           }
-       }
+    // Find highest score for each player
+    for (uint8_t player = 0; player < 3; player++) {
+        Identifier = player;
+        load_scores();
 
-       // Find which player has the absolute highest score
-       uint8_t best_player = 0;
-       uint8_t the_most_highest_score = 0;
-       for (uint8_t i = 0; i < 3; i++) {
-           if (highest_score[i] > the_most_highest_score) {
-               the_most_highest_score = highest_score[i];
-               best_player = i;
-           }
-       }
+        for (uint8_t i = 0; i < MAX_SCORES; i++) {
+            if (scoreHistory[i] > highest_score[player]) {
+                highest_score[player] = scoreHistory[i];
+            }
+        }
 
-       // Set Identifier to the best player for display
-       Identifier = best_player;
+        if (highest_score[player] > the_most_highest_score) {
+            the_most_highest_score = highest_score[player];
+            best_player = player;
+        }
+    }
 
-       // Clear display
-       clear();
-       WS2812BSimpleSend(LED_PINS, (uint8_t *)led_array, NUM_LEDS * 3);
-       Delay_Ms(500);
+    // Set Identifier to the best player for display
+    Identifier = best_player;
 
-       // Display player name based on best_player
-       switch(best_player) {
-           case 0: // JOHN
-               display_letter(LETTER_J, scoreColor, 500);
-               display_letter(LETTER_O, scoreColor, 500);
-               display_letter(LETTER_H, scoreColor, 500);
-               display_letter(LETTER_N, scoreColor, 500);
-               break;
+    // Clear display
+    clear();
+    WS2812BSimpleSend(LED_PINS, (uint8_t *)led_array, NUM_LEDS * 3);
+    Delay_Ms(500);
 
-           case 1: // ALICE
-               display_letter(LETTER_A, scoreColor, 500);
-               display_letter(LETTER_L, scoreColor, 500);
-               display_letter(LETTER_I, scoreColor, 500);
-               display_letter(LETTER_C, scoreColor, 500);
-               display_letter(LETTER_E, scoreColor, 500);
-               break;
+    // Display player name
+    for (int i = 0; i < strlen(names[best_player]); i++) {
+        char c = toupper(names[best_player][i]);
+        if (c >= 'A' && c <= 'Z') {
+            display_letter(c - 'A', scoreColor, 500);
+        }
+    }
 
-           case 2: // KEN
-               display_letter(LETTER_K, scoreColor, 500);
-               display_letter(LETTER_E, scoreColor, 500);
-               display_letter(LETTER_N, scoreColor, 500);
-               break;
-       }
+    // Brief pause before showing score
+    clear();
+    Delay_Ms(500);
 
-       // Brief pause before showing score
-       clear();
-       Delay_Ms(500);
+    // Display highest score
+    const uint8_t tenth_digit = the_most_highest_score / 10;
+    const uint8_t unit_digit = the_most_highest_score % 10;
 
-       // Display highest score
-       const uint8_t tenth_digit = the_most_highest_score / 10;
-       const uint8_t unit_digit = the_most_highest_score % 10;
+    if (tenth_digit > 0) {
+        font_draw(font_list[tenth_digit], scoreColor, 4);
+    }
+    font_draw(font_list[unit_digit], scoreColor, 0);
+    WS2812BSimpleSend(LED_PINS, (uint8_t *)led_array, NUM_LEDS * 3);
+    Delay_Ms(2000);
 
-       if (tenth_digit > 0) {
-           font_draw(font_list[tenth_digit], scoreColor, 4);
-       }
-       font_draw(font_list[unit_digit], scoreColor, 0);
-       WS2812BSimpleSend(LED_PINS, (uint8_t *)led_array, NUM_LEDS * 3);
-       Delay_Ms(2000);
-
-       // Clear display when done
-       clear();
-       WS2812BSimpleSend(LED_PINS, (uint8_t *)led_array, NUM_LEDS * 3);
+    // Clear display when done
+    clear();
+    WS2812BSimpleSend(LED_PINS, (uint8_t *)led_array, NUM_LEDS * 3);
 }
 /***********************************/
 /***********************************/
