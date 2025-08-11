@@ -16,6 +16,12 @@
 #define GRID_SIZE 8        // 8x8 grid
 #define MAX_SCORES 10      // Number of high scores to keep
 #define SCORE_SIZE 2 // Each score uses 2 bytes (index + value)
+//constanst for brekout game
+#define INITIAL_SPEED 350
+#define MAX_SCORES 8
+#define PADDLE_WIDTH 2
+#define BRICK_ROWS 2
+#define IDX(x, y) ((y) * GRID_SIZE + (x))
 //Storage defines
 #define EEPROM_ADDR 0x52 // obtained from i2c_scan(), before shifting by 1 bit
 #define page_size 64    // range of byte that stores status of page[x]
@@ -98,7 +104,14 @@ typedef struct snakePartDir {
     char part;      // 'h'=head, 'b'=body, 't'=tail, 'a'=apple, '0'=empty
     int8_t direction; // movement direction
 } snakePartDir;
-
+typedef struct cell_t{
+    char part;
+} cell_t;
+cell_t gameBoard_1[GRID_SIZE * GRID_SIZE];
+typedef struct ball_t{
+    int8_t x, y;
+    int8_t dx, dy;
+} ball_t;
 // Colors
 color_t appleColor = {.r = 255, .g = 0, .b = 0};        // red
 color_t snakeHeadColor = {.r = 0, .g = 45, .b = 45};    // cyan
@@ -107,6 +120,9 @@ color_t snakeTailColor = {.r = 55, .g = 12, .b = 51};   // yellow
 color_t blankColor = {.r = 0, .g = 0, .b = 0};          // off
 color_t scoreColor = {.r = 90, .g = 55, .b = 12};    // green for scores
 color_t speedBoostColor = {.r = 255, .g = 0, .b = 255}; // Purple indicator
+color_t brickColor = {.r = 200, .g = 80, .b = 10};
+color_t paddleColor = {.r = 10, .g = 100, .b = 255};
+color_t ballColor = {.r = 255, .g = 255, .b = 255};
 // Game state
 snakePartDir gameBoard[GRID_SIZE * GRID_SIZE];
 int8_t snakeHead, snakeTail;
@@ -117,7 +133,14 @@ bool gameOver;
 bool game_regime = false;
 uint16_t speedCounter = 0;
 uint8_t Identifier = 0;// the index of the name choosed
-
+//variables for bounce game
+ball_t ball;
+int8_t paddleX; // Paddle leftmost position
+uint8_t score_1;
+uint8_t scoreHistory_1[MAX_SCORES] = {0};
+uint8_t currentScoreIndex_1 = 0;
+bool gameOver_1 = false;
+uint8_t number_of_blocks(void);
 
 // Generate a new apple at random empty position
 void generate_apple(void) {
@@ -760,6 +783,166 @@ void load_paint(uint16_t paint_no, color_t * data, uint8_t is_icon) {
 /*****************************************/
 /*****************************************/
 /*****************************************/
+
+/***************************************************************************/
+/***************************************************************************/
+/***************************Brekout Game**************************************/
+/***************************************************************************/
+/***************************************************************************/
+void clear_board_1(void) {
+    for (int i = 0; i < GRID_SIZE * GRID_SIZE; i++)
+        gameBoard_1[i].part = '0';
+}
+
+void display_1(void) {
+    clear();
+    for (int y = 0; y < GRID_SIZE; y++) {
+        for (int x = 0; x < GRID_SIZE; x++) {
+            int i = IDX(x, y);
+            switch (gameBoard_1[i].part) {
+                case 'x': set_color(i, brickColor); break;//brick
+                case 'p': set_color(i, paddleColor); break;//paddle
+                case 'b': set_color(i, ballColor); break;//ball
+                case '0': set_color(i, blankColor); break;//blank
+                default: set_color(i, blankColor); break;
+            }
+        }
+    }
+    WS2812BSimpleSend(LED_PINS, (uint8_t *)led_array, NUM_LEDS * 3);
+}
+
+void breakout_init(void) {
+    clear_board_1();
+    // Place bricks
+    for (int y = 8; y >= 8-BRICK_ROWS; y--)
+        for (int x = 0; x < GRID_SIZE; x++)
+            gameBoard_1[IDX(x, y)].part = 'x';
+    // Place paddle (bottom row)
+    paddleX = 3;
+    for (int x = paddleX; x < paddleX + PADDLE_WIDTH; x++)
+        gameBoard_1[IDX(x, 0)].part = 'p';
+    // Place ball (above paddle, center)
+    ball.x = 4;
+    ball.y = 2;
+    ball.dx = 1;
+    ball.dy = 1;
+    gameBoard_1[IDX(ball.x, ball.y)].part = 'b';
+    score_1 = 0;
+    gameOver_1 = false;
+}
+
+void update_paddle(int8_t dir) {
+    // Remove paddle from board
+    for (int x = 0; x < GRID_SIZE; x++)
+        gameBoard_1[IDX(x, 0)].part = '0';
+    // Update paddleX
+    paddleX += dir;
+    if (paddleX <= 0) paddleX = 0;
+    if (paddleX >=GRID_SIZE - PADDLE_WIDTH) paddleX = GRID_SIZE - PADDLE_WIDTH;
+    // Draw paddle
+
+    for (int x = paddleX; x < paddleX + PADDLE_WIDTH; x++)
+        gameBoard_1[IDX(x, 0)].part = 'p';
+}
+
+void save_score_1(void) {
+    score_1 = 16-number_of_blocks();
+    scoreHistory_1[currentScoreIndex] = score_1;
+    currentScoreIndex = (currentScoreIndex + 1) % MAX_SCORES;
+}
+
+void show_current_score_1(void) {
+    clear();
+    const uint8_t tenth_digit = score_1 / 10;
+    const uint8_t unit_digit = score_1 % 10;
+    font_draw(font_list[tenth_digit], scoreColor, 4);
+    font_draw(font_list[unit_digit], scoreColor, 0);
+    WS2812BSimpleSend(LED_PINS, (uint8_t *)led_array, NUM_LEDS * 3);
+}
+
+void show_score_history_1(void) {
+    clear();
+    for (uint8_t i = 0; i < MAX_SCORES; i++) {
+        if (scoreHistory_1[i] == 0) continue;
+        const uint8_t tenth_digit = scoreHistory_1[i] / 10;
+        const uint8_t unit_digit = scoreHistory_1[i] % 10;
+        set_color(63, scoreColor);
+        set_color(62, scoreColor);
+        font_draw(font_list[tenth_digit], scoreColor, 4);
+        font_draw(font_list[unit_digit], scoreColor, 0);
+        WS2812BSimpleSend(LED_PINS, (uint8_t *)led_array, NUM_LEDS * 3);
+        Delay_Ms(1200);
+        clear();
+        WS2812BSimpleSend(LED_PINS, (uint8_t *)led_array, NUM_LEDS * 3);
+        Delay_Ms(250);
+    }
+}
+
+void move_ball(void) {
+    // Remove ball from current position
+    gameBoard_1[IDX(ball.x, ball.y)].part = '0';
+
+    int8_t nx = ball.x + ball.dx;
+    int8_t ny = ball.y + ball.dy;
+
+    // Wall bounce (left/right)
+    if (nx < 0 || nx >= GRID_SIZE) {
+        ball.dx *= -1;
+        nx = ball.x + ball.dx;
+    }
+    // Ceiling bounce
+    if (ny == 8) {
+        ball.dy *= -1;
+        ny = ball.y + ball.dy;
+    }
+    // Brick collision
+    if (ny > 8-BRICK_ROWS && gameBoard_1[IDX(nx, ny)].part == 'x') {
+        gameBoard_1[IDX(nx, ny)].part = '0';
+        ball.dy *= -1;
+        ny = ball.y + ball.dy;
+    }
+    // Paddle collision
+    if (ny == 0) {
+        if (nx >= paddleX && nx < paddleX + PADDLE_WIDTH) {
+            ball.dy *= -1;
+            ny = ball.y + ball.dy;
+            // (Optional) Control dx based on hit: edge = curve, center = straight
+            if (nx == paddleX) ball.dx = -1;
+            else if (nx == paddleX + PADDLE_WIDTH - 1) ball.dx = 1;
+        } else {
+            gameOver_1 = true;
+            return;
+        }
+    }
+    // Move ball
+    ball.x = nx;
+    ball.y = ny;
+    gameBoard_1[IDX(ball.x, ball.y)].part = 'b';
+}
+uint8_t number_of_blocks(void) {
+    uint8_t local_score = 0;
+    const uint8_t total_bricks = GRID_SIZE * BRICK_ROWS;
+    const uint8_t start_index = GRID_SIZE * GRID_SIZE - 1; // Last index (63 for 8x8 grid)
+
+    // Calculate destroyed bricks (where part == '0')
+    for(int i = 0; i < total_bricks; i++) {
+        if (gameBoard_1[start_index - i].part == 'x') {
+            local_score++;
+        }
+    }
+    return local_score;
+}
+bool bricks_remaining(void) {
+    for (int i = 0; i < GRID_SIZE * BRICK_ROWS; i++)
+        if (gameBoard_1[(64-i)].part == 'x')
+            return true;
+    return false;
+}
+/***************************************************************************/
+/***************************************************************************/
+/***************************Brekout Game************************************/
+/***************************************************************************/
+/***************************************************************************/
 //Sorry for shit code:(, especially part with EEPROM
 int main(void) {
     // Initialize hardware
@@ -788,7 +971,7 @@ int main(void) {
             }
     // Game loop
     while(1) {
-
+        if(JOY_3_pressed()){// we start snake game
 //      load_scores();
         game_init();
         display();
@@ -889,6 +1072,59 @@ int main(void) {
                        timeout -= 10;
                    }
                }
+        }
+        if(JOY_9_pressed()){//breakout_game init
+             while (JOY_9_pressed()) Delay_Ms(10);
+                         breakout_init();
+                         display_1();
+                         Delay_Ms(1000);
+
+                         int16_t speed = INITIAL_SPEED;
+                         while (!gameOver_1) {
+                             // Move paddle
+                             if (JOY_4_pressed() && paddleX < GRID_SIZE - PADDLE_WIDTH) {
+                                 update_paddle(1);
+                                 while (JOY_4_pressed()) Delay_Ms(5);
+                             }
+                             if (JOY_6_pressed() && paddleX >0 ) {
+                                 update_paddle(-1);
+                                 while (JOY_6_pressed()) Delay_Ms(5);
+                             }
+
+                             move_ball();
+                             display_1();
+
+                             if (!bricks_remaining()) {
+                                 // Win!
+                                 gameOver_1 = true;
+                             }
+
+                             Delay_Ms(speed);
+                             if (speed > 100 && score > 0) speed -= 2;
+                         }
+
+                         // Game Over
+                         save_score_1();
+                         show_current_score_1();
+                         Delay_Ms(200);
+
+                         // Wait for action
+                         while (1) {
+                             if (JOY_7_pressed()) {
+                                 while (JOY_7_pressed()) Delay_Ms(10);
+                                 show_score_history_1();
+                                 Delay_Ms(800);
+                                 break;
+                             }
+                             if (JOY_5_pressed()) {
+                                 while (JOY_5_pressed()) Delay_Ms(10);
+                                 break;
+                             }
+                             Delay_Ms(10);
+                         }
+
+
+         }
     }
     return 0;
 }
