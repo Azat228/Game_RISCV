@@ -1,22 +1,105 @@
+#define CH32V003_I2C_IMPLEMENTATION
 #define WS2812BSIMPLE_IMPLEMENTATION
+#include <stdbool.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include "./ch32v003fun/ch32v003_i2c.h"
 #include "./data/colors.h"
 #include "./ch32v003fun/driver.h"
-#include "./ch32v003fun/ws2812b_simple.h"
 #include "./data/fonts.h"
-#include <stdbool.h>
-
+#include "./data/music.h"
+#include "./ch32v003fun/ws2812b_simple.h"
 #define LED_PINS GPIOA, 2
-
-// Game constants for snake game
+// Game constants
 #define INITIAL_SPEED 500  // ms between moves
 #define GRID_SIZE 8        // 8x8 grid
 #define MAX_SCORES 10      // Number of high scores to keep
+#define SCORE_SIZE 2 // Each score uses 2 bytes (index + value)
 //constanst for brekout game
 #define INITIAL_SPEED 350
 #define MAX_SCORES 8
 #define PADDLE_WIDTH 2
 #define BRICK_ROWS 2
 #define IDX(x, y) ((y) * GRID_SIZE + (x))
+//Storage defines
+#define EEPROM_ADDR 0x52 // obtained from i2c_scan(), before shifting by 1 bit
+#define page_size 64    // range of byte that stores status of page[x]
+#define opcode_size 28    // range of byte that stores opcodes
+#define init_status_addr_begin 0
+#define init_status_addr_end 7
+#define init_status_reg_size (init_status_addr_end - init_status_addr_begin + 1) // size  = 8
+#define init_status_format "  %c "
+#define init_status_data (uint8_t *)"IL000001"
+#define page_status_addr_begin 8 // page 8
+#define page_status_addr_end 511 // page 511
+#define page_status_reg_size (page_status_addr_end - page_status_addr_begin + 1) // page size = 504
+#define paint_addr_begin 8 //paint page start at 8
+#define sizeof_paint_data (3 * NUM_LEDS) //paint page size = 192
+#define sizeof_paint_data_aspage (sizeof_paint_data / page_size) // no. of paint page = 3
+#define paint_addr_end (paint_addr_begin + 8 * sizeof_paint_data_aspage - 1) // paint page end at addr = 31
+#define paint_page_no (0 * sizeof_paint_data_aspage) //no = 0
+#define paint_page_no_max (8 * sizeof_paint_data_aspage) //size = 24
+#define num_paint_saves (paint_page_no_max / sizeof_paint_data_aspage) //size = 8
+#define opcode_addr_begin (paint_addr_end + paint_page_no_max - 1) //addr = 54
+#define sizeof_opcode_data 64 //size = 64
+#define sizeof_opcode_data_aspage (sizeof_opcode_data / page_size) // size = 1
+#define opcode_addr_end (opcode_addr_begin + 8 * sizeof_paint_data_aspage - 1) //addr = 61
+#define opcode_page_no (0 * sizeof_opcode_data_aspage) //no = 8
+#define opcode_page_no_max (8 * sizeof_opcode_data_aspage) //size = 8
+#define matrix_hori 16
+#define app_icon_page_no (0 * sizeof_paint_data_aspage) //no = 0
+#define app_icon_page_no_max (8 * sizeof_paint_data_aspage) //size = 24
+#define delay 1000
+#define SCORE_START_ADDR 0x0008
+// initialize file storage structure for 32kb/512pages
+// first 8 pages are used for status
+//Letters define
+#define LETTER_A  0
+#define LETTER_B  1
+#define LETTER_C  2
+#define LETTER_D  3
+#define LETTER_E  4
+#define LETTER_F  5
+#define LETTER_G  6
+#define LETTER_H  7
+#define LETTER_I  8
+#define LETTER_J  9
+#define LETTER_K  10
+#define LETTER_L  11
+#define LETTER_M  12
+#define LETTER_N  13
+#define LETTER_O  14
+#define LETTER_P  15
+#define LETTER_Q  16
+#define LETTER_R  17
+#define LETTER_S  18
+#define LETTER_T  19
+#define LETTER_U  20
+#define LETTER_v  21
+#define LETTER_W  22
+#define LETTER_X  23
+#define LETTER_Y  24
+#define LETTER_Z  25
+#define NAME_LENGTH 5
+void init_storage(void);
+void save_paint(uint16_t paint_no, color_t * data, uint8_t is_icon);    // save paint data to eeprom, paint 0 stored in page ?? (out of page 0 to 511)
+void load_paint(uint16_t paint_no, color_t * data, uint8_t is_icon);    // load paint data from eeprom, paint 0 stored in page ?? (out of page 0 to 511)
+void set_page_status(uint16_t page_no, uint8_t status); // set page status to 0 or 1
+void reset_storage(void);   // reset to default storage status
+void print_status_storage(void);    // print storage data to console
+//function prototypes for name handling
+void display_letter(uint8_t letter_idx, color_t color, int delay_ms);
+void display_full_message(const uint8_t* letters, uint8_t count, color_t color, uint16_t delay_ms);
+char* create_name(void);
+void choose_your_name(void);
+
+uint8_t is_page_used(uint16_t page_no); // check if page[x] is already used
+uint8_t is_storage_initialized(void);   // check if already initialized data, aka init_status_data is set
+// save opcode data to eeprom, paint 0 stored in page ?? (out of page 0 to 511)
+uint16_t calculate_page_no(uint16_t paint_no, uint8_t is_icon);
+
+
 typedef struct snakePartDir {
     char part;      // 'h'=head, 'b'=body, 't'=tail, 'a'=apple, '0'=empty
     int8_t direction; // movement direction
@@ -25,7 +108,7 @@ typedef struct cell_t{
     char part;
 } cell_t;
 cell_t gameBoard_1[GRID_SIZE * GRID_SIZE];
-typedef struct {
+typedef struct ball_t{
     int8_t x, y;
     int8_t dx, dy;
 } ball_t;
@@ -49,6 +132,7 @@ uint8_t currentScoreIndex = 0;
 bool gameOver;
 bool game_regime = false;
 uint16_t speedCounter = 0;
+uint8_t Identifier = 0;// the index of the name choosed
 //variables for bounce game
 ball_t ball;
 int8_t paddleX; // Paddle leftmost position
@@ -56,13 +140,8 @@ uint8_t score_1;
 uint8_t scoreHistory_1[MAX_SCORES] = {0};
 uint8_t currentScoreIndex_1 = 0;
 bool gameOver_1 = false;
-bool exit = false;
 uint8_t number_of_blocks(void);
-/***************************************************************************/
-/***************************************************************************/
-/***************************SNAKE Game**************************************/
-/***************************************************************************/
-/***************************************************************************/
+
 // Generate a new apple at random empty position
 void generate_apple(void) {
     uint8_t applePos;
@@ -73,7 +152,7 @@ void generate_apple(void) {
 }
 
 // Initialize game board and snake
-void snake_game_init() {
+void game_init() {
     // Clear game board
     for (int i = 0; i < GRID_SIZE * GRID_SIZE; i++) {
         gameBoard[i] = (snakePartDir){'0', 0};
@@ -191,9 +270,10 @@ void show_current_score() {
     const uint8_t unit_digit = score % 10;
 
     // Display digits side by side
+//    font_draw(font_list[tenth_digit], scoreColor, 4);
     font_draw(font_list[tenth_digit], scoreColor, 4);
     font_draw(font_list[unit_digit], scoreColor, 0);
-    WS2812BSimpleSend(LED_PINS, (uint8_t *)led_array, NUM_LEDS * 3);
+        WS2812BSimpleSend(LED_PINS, (uint8_t *)led_array, NUM_LEDS * 3);
 }
 
 // Display score history
@@ -222,21 +302,487 @@ void show_score_history() {
         Delay_Ms(300);
     }
 }
-
-// Save current score to history
-void save_score() {
-    // Add score to history
-    scoreHistory[currentScoreIndex] = score;
-    currentScoreIndex = (currentScoreIndex + 1) % MAX_SCORES;
+/***********************************************/
+/***********************************************/
+/***************Names Hadling*******************/
+/***********************************************/
+/***********************************************/
+void display_letter(uint8_t letter_idx, color_t color, int delay_ms) {
+    Letter_draw(Letter_List[letter_idx], color, 0);
+    WS2812BSimpleSend(LED_PINS, (uint8_t *)led_array, NUM_LEDS*3);
+    Delay_Ms(delay_ms);
+    clear();
 }
-/***************************************************************************/
-/***************************************************************************/
-/***************************SNAKE Game**************************************/
-/***************************************************************************/
-/***************************************************************************/
+// Name selection handler
+/*void available_names(uint8_t num_name) {
+    Identifier = num_name;  // Set global identifier
+
+    switch(num_name) {
+        case 0:  // "JOHN"
+            display_letter(LETTER_J, scoreColor, 500);
+            display_letter(LETTER_O, scoreColor, 500);
+            display_letter(LETTER_H, scoreColor, 500);
+            display_letter(LETTER_N, scoreColor, 500);
+            break;
+
+        case 1:  // "ALICE"
+            display_letter(LETTER_A, scoreColor, 500);
+            display_letter(LETTER_L, scoreColor, 500);
+            display_letter(LETTER_I, scoreColor, 500);
+            display_letter(LETTER_C, scoreColor, 500);
+            display_letter(LETTER_E, scoreColor, 500);
+            break;
+
+        case 2:  // "KEN"
+            display_letter(LETTER_K, scoreColor, 500);
+            display_letter(LETTER_E, scoreColor, 500);
+            display_letter(LETTER_N, scoreColor, 500);
+            break;
+
+        default:
+            // Handle invalid input
+            break;
+    }
+}
+*/
+void display_full_message(const uint8_t* letters, uint8_t count, color_t color, uint16_t delay_ms) {
+    for (uint8_t i = 0; i < count; i++) {
+        Letter_draw(Letter_List[letters[i]], color, 0);
+        WS2812BSimpleSend(LED_PINS, (uint8_t *)led_array, NUM_LEDS*3);
+        Delay_Ms(delay_ms);
+        clear();
+    }
+}
+void choose_your_name(void) {
+    // Define "CHOOSE YOUR NAME" letter sequence
+    const uint8_t message_letters[] = {
+        LETTER_C, LETTER_H, LETTER_O, LETTER_O, LETTER_S, LETTER_E,  // CHOOSE
+        255,  // Space (special value)
+        LETTER_Y, LETTER_O, LETTER_U, LETTER_R,  // YOUR
+        255,  // Space
+        LETTER_N, LETTER_A, LETTER_M, LETTER_E  // NAME
+    };
+
+    // Display each letter with animation
+    for (int i = 0; i < sizeof(message_letters); i++) {
+        if (message_letters[i] == 255) {
+            // Handle space (clear screen for longer)
+            clear();
+            Delay_Ms(300);  // Pause for spaces
+        } else {
+            Letter_draw(Letter_List[message_letters[i]], scoreColor, 0);
+            WS2812BSimpleSend(LED_PINS, (uint8_t *)led_array, NUM_LEDS*3);
+            Delay_Ms(300);  // Shorter delay between letters
+            clear();
+            Delay_Ms(50);   // Brief pause after each letter
+        }
+    }
+}
+char* create_name(void){
+    int i = 0;
+    char*new_name = malloc(NAME_LENGTH+1);
+    if (!new_name) return NULL;
+    int j = 0;
+    uint8_t letter_list[5] = {0} ;
+    while(j<NAME_LENGTH){
+        display_letter(i,scoreColor,600);
+        if(JOY_5_pressed()){
+           while(JOY_5_pressed()) Delay_Ms(20);
+           new_name[j] = Letter_List[i];
+           letter_list[j] = i;
+           j++;
+           i = 0;
+           continue;
+        }
+        i++;
+    }
+    display_full_message(letter_list, j, scoreColor, 500);
+    Identifier++;
+    return new_name;
+}
+/***********************************************/
+/***********************************************/
+/***************Names Hadling*******************/
+/***********************************************/
+/***********************************************/
 
 
+/***********************************/
+/***********************************/
+/*****EEPROM Scores Handling********/
+/***********************************/
+/***********************************/
+void reset_all_scores(void){
+    printf("All scores are reseted");
+    reset_storage();
+}
+// Save the current score to EEPROM
+void save_currentScore_EEPROM(uint8_t score) {
+    // Find the first empty slot or overwrite the oldest score
+    uint8_t slot = 0;
+    uint8_t found_empty = 0;
 
+    // Try to find an empty slot (score = 0)
+    for (uint8_t i = 0; i < MAX_SCORES; i++) {
+        if (scoreHistory[i] == 0) {
+            slot = i;
+            found_empty = 1;
+            break;
+        }
+    }
+
+    // If no empty slots, find the smallest score to overwrite
+    if (!found_empty) {
+        uint8_t min_score = 255;
+        for (uint8_t i = 0; i < MAX_SCORES; i++) {
+            if (scoreHistory[i] < min_score) {
+                min_score = scoreHistory[i];
+                slot = i;
+            }
+        }
+    }
+    // savings different players scores to different EEPROM location
+    // Only save if the new score is higher than the existing one
+    if (score > scoreHistory[slot]) {
+        scoreHistory[slot] = score;
+
+        // Calculate EEPROM address for this score (2 bytes per score)
+        uint16_t addr = SCORE_START_ADDR + (slot * SCORE_SIZE) + 100*Identifier;
+
+        // Prepare data to write (index + score)
+        uint8_t data[SCORE_SIZE] = {slot, score};
+
+        // Write to EEPROM
+        i2c_write(EEPROM_ADDR, addr, I2C_REGADDR_2B, data, SCORE_SIZE);
+        Delay_Ms(3); // EEPROM write delay
+
+        printf("Score %d saved to slot %d at addr %d\n", score, slot, addr);
+    }
+}
+void save_current_name( char* new_name){
+
+}
+void load_names(void){
+
+}
+void load_scores(void) {
+    // Clear current score history
+    for (uint8_t i = 0; i < MAX_SCORES; i++) {
+        scoreHistory[i] = 0;
+    }
+
+    currentScoreIndex = 0;
+
+    // Read all score slots
+    for (uint8_t i = 0; i < MAX_SCORES; i++) {
+        uint16_t addr = SCORE_START_ADDR + (i * SCORE_SIZE) + 100*Identifier;
+        uint8_t data[SCORE_SIZE];
+
+        i2c_read(EEPROM_ADDR, addr, I2C_REGADDR_2B, data, SCORE_SIZE);
+
+        // Validate the data (index should match slot)
+        if (data[0] == i && data[1] != 0) {
+            scoreHistory[i] = data[1];
+            currentScoreIndex++;
+        }
+    }
+
+    printf("Loaded %d scores from EEPROM\n", currentScoreIndex);
+}
+void reveal_all_scores(void) {
+    // Load scores from EEPROM first to ensure we have current data
+    load_scores();
+
+    // Clear the display
+    clear();
+    WS2812BSimpleSend(LED_PINS, (uint8_t *)led_array, NUM_LEDS * 3);
+    Delay_Ms(500);
+
+    // Display each score with its position
+    for (uint8_t i = 0; i < MAX_SCORES; i++) {
+        if (scoreHistory[i] == 0) continue; // Skip empty slots
+
+        // First show which score this is (1-10)
+        clear();
+        set_color(63, scoreColor); // Indicator LED for score position
+
+        // Display position number (1-10) on right side
+        if (i < 9) {
+            // Positions 1-9 (display single digit)
+            font_draw(font_list[i+1], scoreColor, 0); // +1 because positions start at 1
+        } else {
+            // Position 10 (special case)
+            font_draw(font_list[1], scoreColor, 4); // '1'
+            font_draw(font_list[0], scoreColor, 0);  // '0'
+        }
+        WS2812BSimpleSend(LED_PINS, (uint8_t *)led_array, NUM_LEDS * 3);
+        Delay_Ms(1000);
+
+        // Then show the actual score value
+        clear();
+        const uint8_t tenth_digit = scoreHistory[i] / 10;
+        const uint8_t unit_digit = scoreHistory[i] % 10;
+
+        // Display score value
+        if (tenth_digit > 0) {
+            font_draw(font_list[tenth_digit], scoreColor, 4); // Tens place
+        }
+        font_draw(font_list[unit_digit], scoreColor, 0);      // Units place
+        WS2812BSimpleSend(LED_PINS, (uint8_t *)led_array, NUM_LEDS * 3);
+        Delay_Ms(1500);
+
+        // Brief pause between scores
+        clear();
+        WS2812BSimpleSend(LED_PINS, (uint8_t *)led_array, NUM_LEDS * 3);
+        Delay_Ms(300);
+    }
+
+    // Final clear
+    clear();
+    WS2812BSimpleSend(LED_PINS, (uint8_t *)led_array, NUM_LEDS * 3);
+}
+// this is shit code function that works, I will think how to rewrite
+void show_name_and_highest_score(void) {
+    uint8_t highest_score[3] = {0};  // Initialize all to 0
+
+       // Find highest score for each player
+       for (uint8_t player = 0; player < 3; player++) {
+           Identifier = player;
+           load_scores();
+
+           for (uint8_t i = 0; i < MAX_SCORES; i++) {
+               if (scoreHistory[i] > highest_score[player]) {
+                   highest_score[player] = scoreHistory[i];
+               }
+           }
+       }
+
+       // Find which player has the absolute highest score
+       uint8_t best_player = 0;
+       uint8_t the_most_highest_score = 0;
+       for (uint8_t i = 0; i < 3; i++) {
+           if (highest_score[i] > the_most_highest_score) {
+               the_most_highest_score = highest_score[i];
+               best_player = i;
+           }
+       }
+
+       // Set Identifier to the best player for display
+       Identifier = best_player;
+
+       // Clear display
+       clear();
+       WS2812BSimpleSend(LED_PINS, (uint8_t *)led_array, NUM_LEDS * 3);
+       Delay_Ms(500);
+
+       // Display player name based on best_player
+       switch(best_player) {
+           case 0: // JOHN
+               display_letter(LETTER_J, scoreColor, 500);
+               display_letter(LETTER_O, scoreColor, 500);
+               display_letter(LETTER_H, scoreColor, 500);
+               display_letter(LETTER_N, scoreColor, 500);
+               break;
+
+           case 1: // ALICE
+               display_letter(LETTER_A, scoreColor, 500);
+               display_letter(LETTER_L, scoreColor, 500);
+               display_letter(LETTER_I, scoreColor, 500);
+               display_letter(LETTER_C, scoreColor, 500);
+               display_letter(LETTER_E, scoreColor, 500);
+               break;
+
+           case 2: // KEN
+               display_letter(LETTER_K, scoreColor, 500);
+               display_letter(LETTER_E, scoreColor, 500);
+               display_letter(LETTER_N, scoreColor, 500);
+               break;
+       }
+
+       // Brief pause before showing score
+       clear();
+       Delay_Ms(500);
+
+       // Display highest score
+       const uint8_t tenth_digit = the_most_highest_score / 10;
+       const uint8_t unit_digit = the_most_highest_score % 10;
+
+       if (tenth_digit > 0) {
+           font_draw(font_list[tenth_digit], scoreColor, 4);
+       }
+       font_draw(font_list[unit_digit], scoreColor, 0);
+       WS2812BSimpleSend(LED_PINS, (uint8_t *)led_array, NUM_LEDS * 3);
+       Delay_Ms(2000);
+
+       // Clear display when done
+       clear();
+       WS2812BSimpleSend(LED_PINS, (uint8_t *)led_array, NUM_LEDS * 3);
+}
+/***********************************/
+/***********************************/
+/*****EEPROM Scores Handling********/
+/***********************************/
+/***********************************/
+
+/*****************************************/
+/*****************************************/
+/**************EEPROM*********************/
+/*****************************************/
+/*****************************************/
+/*****************************************/
+void init_storage(void) {
+    if (!is_storage_initialized()) {
+        reset_storage();
+        printf("Storage initialized\n");
+    }
+    else {
+        printf("Storage already initialized\n");
+    }
+}
+
+uint8_t is_storage_initialized(void) {
+    uint8_t data[init_status_reg_size];
+    i2c_read(EEPROM_ADDR, init_status_addr_begin, I2C_REGADDR_2B, data, init_status_reg_size);
+    for (uint8_t i = 0; i < init_status_reg_size; i++) {
+        if (data[i] != *(init_status_data + i)) {
+            return 0;
+        }
+    }
+    return 1;
+}
+
+void reset_storage(void) {
+    i2c_write(EEPROM_ADDR, init_status_addr_begin, I2C_REGADDR_2B, init_status_data,
+        init_status_reg_size);
+    Delay_Ms(3);
+    for (uint16_t addr = page_status_addr_begin;
+         addr < page_status_addr_begin + page_status_reg_size; addr++) {
+        i2c_write(EEPROM_ADDR, addr, I2C_REGADDR_2B, (uint8_t[]){0}, sizeof(uint8_t));
+        Delay_Ms(3);
+    }
+    printf("Storage reset\n");
+}
+
+void print_status_storage(void) {
+    printf("Status storage data:\n");
+    for (uint16_t addr = init_status_addr_begin;
+         addr < init_status_addr_begin + init_status_reg_size; addr++) {
+        uint8_t data = 0;
+        i2c_read(EEPROM_ADDR, addr, I2C_REGADDR_2B, &data, sizeof(data));
+        printf(" %d: ", addr);
+        printf(init_status_format, data);
+    }
+    printf("\n");
+    for (uint16_t addr = page_status_addr_begin;
+         addr < page_status_addr_begin + page_status_reg_size; addr++) {
+        uint8_t data = 0;
+        i2c_read(EEPROM_ADDR, addr, I2C_REGADDR_2B, &data, sizeof(data));
+        if (data) {
+            printf("%d ", addr);
+        }
+        else {
+            printf("    ");
+        }
+        if ((addr + 1) % matrix_hori == 0) {
+            printf("\n");
+        }
+    }
+    printf("\n");
+}
+
+void set_page_status(uint16_t page_no, uint8_t status) {
+    if (status > 1) {
+        printf("Invalid status %d\n", status);
+        printf("DEBUG: %d\n", __LINE__);
+        while (1)
+            ;
+    }
+    if (page_no < page_status_addr_begin || page_no > page_status_addr_end) {
+        printf("Invalid page number %d\n", page_no);
+        printf("DEBUG: %d\n", __LINE__);
+        while (1)
+            ;
+    }
+    i2c_write(EEPROM_ADDR, page_no, I2C_REGADDR_2B, &status, sizeof(status));
+    Delay_Ms(3);
+    //printf("Page %d status set to %d\n", page_no, status);
+}
+
+uint8_t is_page_used(uint16_t page_no) {
+    if (page_no < page_status_addr_begin || page_no > page_status_addr_end) {
+        printf("Invalid page number %d\n", page_no);
+        printf("DEBUG: %d\n", __LINE__);
+        while (1);
+    }
+    uint8_t data = 0;
+    i2c_read(EEPROM_ADDR, page_no, I2C_REGADDR_2B, &data, sizeof(data));
+    //printf("Page %d is %s\n", page_no, data ? "used" : "empty");
+    return data;
+}
+
+uint16_t calculate_page_no(uint16_t paint_no, uint8_t is_icon) {
+    if (is_icon==1) {
+        return (paint_no + app_icon_page_no) * sizeof_paint_data_aspage +
+               paint_addr_begin;
+    }
+    else {
+        return paint_no * sizeof_opcode_data_aspage +
+               opcode_addr_begin;
+    }
+}
+void save_paint(uint16_t paint_no, color_t * data, uint8_t is_icon) {
+    if (paint_no < 0 || paint_no > paint_addr_end) {
+        printf("Invalid paint number %d\n", paint_no);
+        printf("DEBUG: %d\n", __LINE__);
+        while (1)
+            ;
+    }
+    uint16_t page_no_start = calculate_page_no(paint_no, is_icon);
+    for (uint16_t i = page_no_start; i < page_no_start + sizeof_paint_data_aspage; i++) {
+        if (is_page_used(i)) {
+            printf("Paint %d already used, overwriting\n", paint_no);
+            Delay_Ms(500);
+        }
+        set_page_status(i, 1);
+    }
+    i2c_result_e err = i2c_write_pages(EEPROM_ADDR, page_no_start * page_size,
+        I2C_REGADDR_2B, (uint8_t *)data, sizeof_paint_data);
+    printf("Save paint result: %d\n", err);
+    Delay_Ms(3);
+    printf("Paint %d saved\n", paint_no);
+}
+void load_paint(uint16_t paint_no, color_t * data, uint8_t is_icon) {
+    if (paint_no < 0 || paint_no > paint_addr_end) {
+        printf("Invalid paint number %d\n", paint_no);
+        printf("DEBUG: %d\n", __LINE__);
+        while (1)
+            ;
+    }
+    uint16_t page_no_start = calculate_page_no(paint_no, is_icon);
+    printf("Loading paint_no %d from page %d, is_icon: %d\n", paint_no, page_no_start,
+        is_icon);
+    if (!is_page_used(page_no_start)) {
+        printf("Paint %d not found\n", paint_no);
+        printf("DEBUG: %d\n", __LINE__);
+        while (1)
+            ;
+    }
+    i2c_result_e err = i2c_read_pages(EEPROM_ADDR, page_no_start * page_size,
+        I2C_REGADDR_2B, (uint8_t *)data, sizeof_paint_data);
+    printf("Load paint result: %d\n", err);
+    Delay_Ms(3);
+    printf("Paint %d loaded\n", paint_no);
+}
+// Show all scores with flashing animation
+
+//
+// Save current score to history
+/*****************************************/
+/*****************************************/
+/**************EEPROM*********************/
+/*****************************************/
+/*****************************************/
+/*****************************************/
 
 /***************************************************************************/
 /***************************************************************************/
@@ -397,17 +943,39 @@ bool bricks_remaining(void) {
 /***************************Brekout Game************************************/
 /***************************************************************************/
 /***************************************************************************/
+//Sorry for shit code:(, especially part with EEPROM
 int main(void) {
     // Initialize hardware
     SystemInit();
     ADC_init();
     JOY_setseed_default();
-while(1){
- if(JOY_3_pressed()){// we start snake game
+    printf("Lets start debug\n");
+    i2c_init();
+    init_storage();
+    JOY_sound(1000, 100);
+    //choosing name
+    while(1){
+                choose_your_name();
+                Delay_Ms(1000);
+                while(1){
+                        if(JOY_5_pressed()){
+                            while(JOY_5_pressed()) Delay_Ms(20);
+                            create_name();
+                            break;
+                        }
+                }
+                        clear();
+                        Delay_Ms(1000);
+                        break;
+
+            }
     // Game loop
     while(1) {
-        snake_game_init();
+        if(JOY_3_pressed()){// we start snake game
+//      load_scores();
+        game_init();
         display();
+        load_scores(); // Load saved scores at start of the game
         Delay_Ms(1000); // Initial delay
 
         int8_t currentDirection = -1; // Start moving left
@@ -454,82 +1022,109 @@ while(1){
             Delay_Ms(currentSpeed);
         }
 
+        if(gameOver) {
 
-        // Game over - save and show score
-        save_score();
-        show_current_score();
-        Delay_Ms(2000);
+                   // Save the current score
+                   if(currentScoreIndex < MAX_SCORES) {
+                       scoreHistory[currentScoreIndex] = score;
+                       currentScoreIndex++;
+                   }
 
-        // Wait for button press
-        while(1) {
+                   // Save to EEPROM
+                   save_currentScore_EEPROM(score);
 
-            if (JOY_7_pressed()) { // Show score history
-                while(JOY_7_pressed()) Delay_Ms(10);
-                show_score_history();
-                Delay_Ms(1000);
-            }
-            Delay_Ms(10);
+                   // Save all scores to EEPROM
 
-            if (JOY_5_pressed()) { // Restart game
-                          while(JOY_5_pressed()) Delay_Ms(10);
-                          break;
-            }
 
+                   // Show current score with flashing
+                   for(uint8_t i = 0; i < 3; i++) {
+                       show_current_score();
+                       Delay_Ms(500);
+                       clear();
+                       WS2812BSimpleSend(LED_PINS, (uint8_t *)led_array, NUM_LEDS * 3);
+                       Delay_Ms(200);
+                   }
+
+                   // Post-game menu
+                   uint32_t timeout = 10000; // 10 second timeout
+                   while(timeout > 0) {
+                       if(JOY_3_pressed()) {
+                           while(JOY_3_pressed()) Delay_Ms(10);
+                           reset_all_scores();
+                           timeout = 10000; // Reset timeout
+                       }
+                       if (JOY_7_pressed()) {
+                           while(JOY_7_pressed()) Delay_Ms(10); // Debounce
+                           show_name_and_highest_score();
+                           Delay_Ms(500); // Prevent immediate re-trigger
+                       }
+                       else if(JOY_5_pressed()) {
+                           while(JOY_5_pressed()) Delay_Ms(10);
+                           break; // Restart game
+                       }
+                       if (JOY_9_pressed()) {
+                           while(JOY_9_pressed()) Delay_Ms(10); // Debounce
+                           reveal_all_scores();
+                           Delay_Ms(500); // Prevent immediate re-trigger
+                       }
+
+                       Delay_Ms(10);
+                       timeout -= 10;
+                   }
+               }
         }
+        if(JOY_9_pressed()){//breakout_game init
+             while (JOY_9_pressed()) Delay_Ms(10);
+                         breakout_init();
+                         display_1();
+                         Delay_Ms(1000);
+
+                         int16_t speed = INITIAL_SPEED;
+                         while (!gameOver_1) {
+                             // Move paddle
+                             if (JOY_4_pressed() && paddleX < GRID_SIZE - PADDLE_WIDTH) {
+                                 update_paddle(1);
+                                 while (JOY_4_pressed()) Delay_Ms(5);
+                             }
+                             if (JOY_6_pressed() && paddleX >0 ) {
+                                 update_paddle(-1);
+                                 while (JOY_6_pressed()) Delay_Ms(5);
+                             }
+
+                             move_ball();
+                             display_1();
+
+                             if (!bricks_remaining()) {
+                                 // Win!
+                                 gameOver_1 = true;
+                             }
+
+                             Delay_Ms(speed);
+                             if (speed > 100 && score > 0) speed -= 2;
+                         }
+
+                         // Game Over
+                         save_score_1();
+                         show_current_score_1();
+                         Delay_Ms(200);
+
+                         // Wait for action
+                         while (1) {
+                             if (JOY_7_pressed()) {
+                                 while (JOY_7_pressed()) Delay_Ms(10);
+                                 show_score_history_1();
+                                 Delay_Ms(800);
+                                 break;
+                             }
+                             if (JOY_5_pressed()) {
+                                 while (JOY_5_pressed()) Delay_Ms(10);
+                                 break;
+                             }
+                             Delay_Ms(10);
+                         }
+
+
+         }
     }
- }
- if(JOY_9_pressed()){//breakout_game init
-     while (JOY_9_pressed()) Delay_Ms(10);
-                 breakout_init();
-                 display_1();
-                 Delay_Ms(1000);
-
-                 int16_t speed = INITIAL_SPEED;
-                 while (!gameOver_1) {
-                     // Move paddle
-                     if (JOY_4_pressed() && paddleX < GRID_SIZE - PADDLE_WIDTH) {
-                         update_paddle(1);
-                         while (JOY_4_pressed()) Delay_Ms(5);
-                     }
-                     if (JOY_6_pressed() && paddleX >0 ) {
-                         update_paddle(-1);
-                         while (JOY_6_pressed()) Delay_Ms(5);
-                     }
-
-                     move_ball();
-                     display_1();
-
-                     if (!bricks_remaining()) {
-                         // Win!
-                         gameOver_1 = true;
-                     }
-
-                     Delay_Ms(speed);
-                     if (speed > 100 && score > 0) speed -= 2;
-                 }
-
-                 // Game Over
-                 save_score_1();
-                 show_current_score_1();
-                 Delay_Ms(200);
-
-                 // Wait for action
-                 while (1) {
-                     if (JOY_7_pressed()) {
-                         while (JOY_7_pressed()) Delay_Ms(10);
-                         show_score_history_1();
-                         Delay_Ms(800);
-                         break;
-                     }
-                     if (JOY_5_pressed()) {
-                         while (JOY_5_pressed()) Delay_Ms(10);
-                         break;
-                     }
-                     Delay_Ms(10);
-                 }
-
-
- }
-}
     return 0;
 }
