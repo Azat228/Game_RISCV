@@ -17,7 +17,6 @@
 #define MAX_SCORES 10      // Number of high scores to keep
 #define SCORE_SIZE 2 // Each score uses 2 bytes (index + value)
 //constanst for brekout game
-#define MAX_SCORES 8
 #define PADDLE_WIDTH 2
 #define BRICK_ROWS 2
 #define IDX(x, y) ((y) * GRID_SIZE + (x))
@@ -51,6 +50,7 @@
 #define app_icon_page_no_max (8 * sizeof_paint_data_aspage) //size = 24
 #define delay 1000
 #define SCORE_START_ADDR 0x0008
+#define USER_ID_START_ADDR 0x1000
 // initialize file storage structure for 32kb/512pages
 // first 8 pages are used for status
 //Letters define
@@ -80,7 +80,7 @@
 #define LETTER_X  23
 #define LETTER_Y  24
 #define LETTER_Z  25
-#define NAME_LENGTH 5
+#define NAME_LENGTH 3
 #define NAME_START_ADDR 0x0100  // Starting address for name storage
 #define MAX_USERS 3
 uint8_t is_page_used(uint16_t page_no); // check if page[x] is already used
@@ -158,6 +158,8 @@ uint8_t score_1;
 uint8_t scoreHistory_1[MAX_SCORES] = {0};
 uint8_t currentScoreIndex_1 = 0;
 bool gameOver_1 = false;
+uint8_t current_user_id = 0;  // Tracks which user is currently active
+char current_name[NAME_LENGTH] = {0};
 char* new_name;
 //function prototypes
 // Storage functions
@@ -451,7 +453,8 @@ void choose_your_name(void) {
     }
 }
 
-char* create_name(void){
+
+char* create_name(void) {
     int i = 0;
     new_name = malloc(NAME_LENGTH+1);
     if (!new_name) return NULL;
@@ -460,27 +463,46 @@ char* create_name(void){
     uint8_t letter_list[5] = {0};
 
     while(j < NAME_LENGTH) {
-        display_letter(i, letters_color[i], 600);
+            display_letter(i, letters_color[i], 600);
 
-        if(JOY_5_pressed()) {
-            while(JOY_5_pressed()) Delay_Ms(20);
-            new_name[j] = Letter_List[i];
-            letter_list[j] = i;
-            j++;
-            i = 0;
-            continue;
+            if(JOY_5_pressed()) {
+                while(JOY_5_pressed()) Delay_Ms(20);
+                new_name[j] = 'A' + i;  // Store the actual letter
+                letter_list[j] = i;     // Store the letter index for display
+                j++;
+                i = 0;
+                continue;
+            }
+
+            // Handle letter cycling
+            if(JOY_2_pressed()) {  // Up - next letter
+                while(JOY_2_pressed()) Delay_Ms(20);
+                i = (i + 1) % 26;
+            }
+            else if(JOY_8_pressed()) {  // Down - previous letter
+                while(JOY_8_pressed()) Delay_Ms(20);
+                i = (i - 1 + 26) % 26;
+            }
+
+            Delay_Ms(100);
         }
-        i++;
-    }
 
     new_name[NAME_LENGTH] = '\0'; // Null-terminate
 
-    // Save the name to EEPROM
-    save_name(Identifier, new_name);
+    // Save to the next available slot
+    if(current_user_id < MAX_USERS) {
+        save_name(current_user_id, new_name);
+        strncpy(current_name, new_name, NAME_LENGTH);
+        current_user_id++;
+    } else {
+        // No more slots - overwrite the oldest
+        current_user_id = 0;
+        save_name(current_user_id, new_name);
+        strncpy(current_name, new_name, NAME_LENGTH);
+        current_user_id++;
+    }
 
-    display_full_message(letter_list, j, scoreColor, 500);
-    Identifier++;
-
+    display_full_message(letter_list, NAME_LENGTH, scoreColor, 500);
     return new_name;
 }
 /***********************************************/
@@ -542,22 +564,24 @@ void save_currentScore_EEPROM(uint8_t score) {
         printf("Score %d saved to slot %d at addr %d\n", score, slot, addr);
     }
 }
-void save_name( uint8_t user_id, const char* name){
+void save_name(uint8_t user_id, const char* name) {
     if (user_id >= MAX_USERS) return;
 
     uint16_t addr = NAME_START_ADDR + (user_id * NAME_LENGTH);
     uint8_t data[NAME_LENGTH];
 
-    // Copy name to buffer (pad with zeros if shorter than MAX_NAME_LENGTH)
+    // Copy name to buffer
     memset(data, 0, NAME_LENGTH);
-    strncpy((char*)data, name, NAME_LENGTH-1); // Ensure null termination
+    strncpy((char*)data, name, NAME_LENGTH);
 
     // Write to EEPROM
     i2c_write(EEPROM_ADDR, addr, I2C_REGADDR_2B, data, NAME_LENGTH);
-    Delay_Ms(3); // EEPROM write delay
+    Delay_Ms(3);
 
     printf("Name '%s' saved for user %d at addr %d\n", name, user_id, addr);
 }
+
+// Modified load_name function
 void load_name(uint8_t user_id, char* buffer) {
     if (user_id >= MAX_USERS) {
         buffer[0] = '\0';
@@ -570,11 +594,21 @@ void load_name(uint8_t user_id, char* buffer) {
     // Read from EEPROM
     i2c_read(EEPROM_ADDR, addr, I2C_REGADDR_2B, data, NAME_LENGTH);
 
-    // Copy to buffer (ensuring null termination)
-    strncpy(buffer, (char*)data, NAME_LENGTH-1);
-    buffer[NAME_LENGTH-1] = '\0';
+    // Copy to buffer
+    strncpy(buffer, (char*)data, NAME_LENGTH);
+    buffer[NAME_LENGTH] = '\0';  // Ensure null termination
 
     printf("Loaded name '%s' for user %d\n", buffer, user_id);
+}
+
+// New function to get current user's name
+void get_current_user_name(char* buffer) {
+    if(current_user_id == 0) {
+        // No users yet, return default
+        strcpy(buffer, "PLAYER");
+        return;
+    }
+    load_name(current_user_id - 1, buffer);  // Load last saved user
 }
 
 // Load all names from EEPROM
@@ -694,22 +728,24 @@ void show_name_and_highest_score(void) {
     WS2812BSimpleSend(LED_PINS, (uint8_t *)led_array, NUM_LEDS * 3);
     Delay_Ms(500);
 
-    // Display player name
+    // Display player name first
     for (int i = 0; i < strlen(names[best_player]); i++) {
-        char c = toupper(names[best_player][i]);
-        if (c >= 'A' && c <= 'Z') {
-            display_letter(c - 'A', scoreColor, 500);
-        }
+          uint8_t plind = names[best_player][i];
+
+            display_letter(plind, letters_color[plind], 500);
+            Delay_Ms(500);
+            clear();
+
     }
 
     // Brief pause before showing score
-    clear();
     Delay_Ms(500);
 
     // Display highest score
     const uint8_t tenth_digit = the_most_highest_score / 10;
     const uint8_t unit_digit = the_most_highest_score % 10;
 
+    clear();
     if (tenth_digit > 0) {
         font_draw(font_list[tenth_digit], scoreColor, 4);
     }
@@ -1074,6 +1110,9 @@ int main(void) {
             }
     // Game loop
     while(1) {
+        char player_name[NAME_LENGTH+1];
+        get_current_user_name(player_name);
+        printf("Current player: %s\n", player_name);
         if(JOY_3_pressed()){// we start snake game
 //      load_scores();
         game_init();
@@ -1126,56 +1165,52 @@ int main(void) {
         }
 
         if(gameOver) {
+            // Save the current score
+            if(currentScoreIndex < MAX_SCORES) {
+                scoreHistory[currentScoreIndex] = score;
+                currentScoreIndex++;
+            }
 
-                   // Save the current score
-                   if(currentScoreIndex < MAX_SCORES) {
-                       scoreHistory[currentScoreIndex] = score;
-                       currentScoreIndex++;
-                   }
+            // Save to EEPROM
+            save_currentScore_EEPROM(score);
+            save_name(Identifier, new_name);
 
-                   // Save to EEPROM
-                   save_currentScore_EEPROM(score);
-                   save_name(Identifier,new_name);
+            // Show current score with flashing
+            for(uint8_t i = 0; i < 3; i++) {
+                show_current_score();
+                Delay_Ms(500);
+                clear();
+                WS2812BSimpleSend(LED_PINS, (uint8_t *)led_array, NUM_LEDS * 3);
+                Delay_Ms(200);
+            }
 
-                   // Save all scores to EEPROM
+            // Post-game menu
+            uint32_t timeout = 10000; // 10 second timeout
+            while(timeout > 0) {
+                if(JOY_3_pressed()) {
+                    while(JOY_3_pressed()) Delay_Ms(10);
+                    reset_all_scores();
+                    timeout = 10000; // Reset timeout
+                }
+                else if (JOY_7_pressed()) {
+                    while(JOY_7_pressed()) Delay_Ms(10); // Debounce
+                    show_name_and_highest_score();
+                    Delay_Ms(500); // Prevent immediate re-trigger
+                }
+                else if(JOY_5_pressed()) {
+                    while(JOY_5_pressed()) Delay_Ms(10);
+                    break; // Restart game
+                }
+                else if (JOY_9_pressed()) {
+                    while(JOY_9_pressed()) Delay_Ms(10); // Debounce
+                    reveal_all_scores();
+                    Delay_Ms(500); // Prevent immediate re-trigger
+                }
 
-
-                   // Show current score with flashing
-                   for(uint8_t i = 0; i < 3; i++) {
-                       show_current_score();
-                       Delay_Ms(500);
-                       clear();
-                       WS2812BSimpleSend(LED_PINS, (uint8_t *)led_array, NUM_LEDS * 3);
-                       Delay_Ms(200);
-                   }
-
-                   // Post-game menu
-                   uint32_t timeout = 10000; // 10 second timeout
-                   while(timeout > 0) {
-                       if(JOY_3_pressed()) {
-                           while(JOY_3_pressed()) Delay_Ms(10);
-                           reset_all_scores();
-                           timeout = 10000; // Reset timeout
-                       }
-                       if (JOY_7_pressed()) {
-                           while(JOY_7_pressed()) Delay_Ms(10); // Debounce
-                           show_name_and_highest_score();
-                           Delay_Ms(500); // Prevent immediate re-trigger
-                       }
-                       else if(JOY_5_pressed()) {
-                           while(JOY_5_pressed()) Delay_Ms(10);
-                           break; // Restart game
-                       }
-                       if (JOY_9_pressed()) {
-                           while(JOY_9_pressed()) Delay_Ms(10); // Debounce
-                           reveal_all_scores();
-                           Delay_Ms(500); // Prevent immediate re-trigger
-                       }
-
-                       Delay_Ms(10);
-                       timeout -= 10;
-                   }
-               }
+                Delay_Ms(10);
+                timeout -= 10;
+            }
+        }
         }
         if(JOY_9_pressed()){//breakout_game init
              while (JOY_9_pressed()) Delay_Ms(10);
@@ -1226,7 +1261,6 @@ int main(void) {
                              }
                              Delay_Ms(10);
                          }
-
 
          }
     }
