@@ -83,18 +83,6 @@
 #define NAME_LENGTH 5
 #define NAME_START_ADDR 0x0100  // Starting address for name storage
 #define MAX_USERS 3
-void init_storage(void);
-void save_paint(uint16_t paint_no, color_t * data, uint8_t is_icon);    // save paint data to eeprom, paint 0 stored in page ?? (out of page 0 to 511)
-void load_paint(uint16_t paint_no, color_t * data, uint8_t is_icon);    // load paint data from eeprom, paint 0 stored in page ?? (out of page 0 to 511)
-void set_page_status(uint16_t page_no, uint8_t status); // set page status to 0 or 1
-void reset_storage(void);   // reset to default storage status
-void print_status_storage(void);    // print storage data to console
-//function prototypes for name handling
-void display_letter(uint8_t letter_idx, color_t color, int delay_ms);
-void display_full_message(const uint8_t* letters, uint8_t count, color_t color, uint16_t delay_ms);
-char* create_name(void);
-void choose_your_name(void);
-
 uint8_t is_page_used(uint16_t page_no); // check if page[x] is already used
 uint8_t is_storage_initialized(void);   // check if already initialized data, aka init_status_data is set
 // save opcode data to eeprom, paint 0 stored in page ?? (out of page 0 to 511)
@@ -124,6 +112,35 @@ color_t speedBoostColor = {.r = 255, .g = 0, .b = 255}; // Purple indicator
 color_t brickColor = {.r = 200, .g = 80, .b = 10};
 color_t paddleColor = {.r = 10, .g = 100, .b = 255};
 color_t ballColor = {.r = 255, .g = 255, .b = 255};
+//colors of the letters
+color_t letters_color[26] = {
+    {.r=255, .g=0,   .b=0},      // A - Red
+    {.r=0,   .g=128, .b=255},    // B - Sky Blue
+    {.r=255, .g=140, .b=0},      // C - Orange
+    {.r=34,  .g=139, .b=34},     // D - Forest Green
+    {.r=255, .g=255, .b=0},      // E - Yellow
+    {.r=255, .g=20,  .b=147},    // F - Deep Pink
+    {.r=0,   .g=255, .b=255},    // G - Cyan
+    {.r=138, .g=43,  .b=226},    // H - Blue Violet
+    {.r=210, .g=105, .b=30},     // I - Chocolate
+    {.r=255, .g=69,  .b=0},      // J - Red Orange
+    {.r=0,   .g=255, .b=0},      // K - Lime
+    {.r=135, .g=206, .b=250},    // L - Light Sky Blue
+    {.r=128, .g=0,   .b=128},    // M - Purple
+    {.r=255, .g=215, .b=0},      // N - Gold
+    {.r=0,   .g=0,   .b=255},    // O - Blue
+    {.r=255, .g=192, .b=203},    // P - Pink
+    {.r=255, .g=255, .b=255},    // Q - White
+    {.r=0,   .g=255, .b=127},    // R - Spring Green
+    {.r=139, .g=69,  .b=19},     // S - Saddle Brown
+    {.r=240, .g=230, .b=140},    // T - Khaki
+    {.r=255, .g=99,  .b=71},     // U - Tomato
+    {.r=64,  .g=224, .b=208},    // V - Turquoise
+    {.r=255, .g=0,   .b=255},    // W - Magenta
+    {.r=47,  .g=79,  .b=79},     // X - Dark Slate Gray
+    {.r=0,   .g=0,   .b=139},    // Y - Dark Blue
+    {.r=173, .g=255, .b=47}      // Z - Green Yellow
+};
 // Game state
 snakePartDir gameBoard[GRID_SIZE * GRID_SIZE];
 int8_t snakeHead, snakeTail;
@@ -141,8 +158,64 @@ uint8_t score_1;
 uint8_t scoreHistory_1[MAX_SCORES] = {0};
 uint8_t currentScoreIndex_1 = 0;
 bool gameOver_1 = false;
-uint8_t number_of_blocks(void);
+char* new_name;
+//function prototypes
+// Storage functions
+void init_storage(void);
+void save_paint(uint16_t paint_no, color_t *data, uint8_t is_icon);
+void load_paint(uint16_t paint_no, color_t *data, uint8_t is_icon);
+void set_page_status(uint16_t page_no, uint8_t status);
+void reset_storage(void);
+void print_status_storage(void);
+uint8_t is_page_used(uint16_t page_no);
+uint8_t is_storage_initialized(void);
+uint16_t calculate_page_no(uint16_t paint_no, uint8_t is_icon);
 
+// Name handling functions
+void display_letter(uint8_t letter_idx, color_t color, int delay_ms);
+void display_full_message(const uint8_t* letters, uint8_t count, color_t color, uint16_t delay_ms);
+char* create_name(void);
+void choose_your_name(void);
+void save_name(uint8_t user_id, const char* name);
+void load_name(uint8_t user_id, char* buffer);
+void load_all_names(char names[MAX_USERS][NAME_LENGTH]);
+
+// Score handling functions
+void reset_all_scores(void);
+void save_currentScore_EEPROM(uint8_t score);
+void load_scores(void);
+void reveal_all_scores(void);
+void show_name_and_highest_score(void);
+
+// Snake game functions
+void generate_apple(void);
+void game_init(void);
+void clear_board(void);
+void display(void);
+int8_t get_new_direction(int8_t currentDirection);
+bool check_apple(int8_t newHeadPos);
+bool check_collision(int8_t newHeadPos);
+void move_snake(int8_t newDirection, bool ateApple);
+void show_current_score(void);
+void show_score_history(void);
+
+// Breakout game functions
+void clear_board_1(void);
+void display_1(void);
+void breakout_init(void);
+void update_paddle(int8_t dir);
+void save_score_1(void);
+void show_current_score_1(void);
+void show_score_history_1(void);
+void move_ball(void);
+uint8_t number_of_blocks(void);
+bool bricks_remaining(void);
+
+/****************/
+/****************/
+/*****SNAKE Game********/
+/****************/
+/****************/
 // Generate a new apple at random empty position
 void generate_apple(void) {
     uint8_t applePos;
@@ -303,6 +376,12 @@ void show_score_history() {
         Delay_Ms(300);
     }
 }
+
+/************************/
+/************************/
+/*****SNAKE Game********/
+/***********************/
+/***********************/
 /***********************************************/
 /***********************************************/
 /***************Names Hadling*******************/
@@ -348,7 +427,7 @@ void display_letter(uint8_t letter_idx, color_t color, int delay_ms) {
 */
 void display_full_message(const uint8_t* letters, uint8_t count, color_t color, uint16_t delay_ms) {
     for (uint8_t i = 0; i < count; i++) {
-        Letter_draw(Letter_List[letters[i]], color, 0);
+        Letter_draw(Letter_List[letters[i]], letters_color[letters[i]], 0);
         WS2812BSimpleSend(LED_PINS, (uint8_t *)led_array, NUM_LEDS*3);
         Delay_Ms(delay_ms);
         clear();
@@ -357,10 +436,6 @@ void display_full_message(const uint8_t* letters, uint8_t count, color_t color, 
 void choose_your_name(void) {
     // Define "CHOOSE YOUR NAME" letter sequence
     const uint8_t message_letters[] = {
-        LETTER_C, LETTER_H, LETTER_O, LETTER_O, LETTER_S, LETTER_E,  // CHOOSE
-        255,  // Space (special value)
-        LETTER_Y, LETTER_O, LETTER_U, LETTER_R,  // YOUR
-        255,  // Space
         LETTER_N, LETTER_A, LETTER_M, LETTER_E  // NAME
     };
 
@@ -371,24 +446,21 @@ void choose_your_name(void) {
             clear();
             Delay_Ms(300);  // Pause for spaces
         } else {
-            Letter_draw(Letter_List[message_letters[i]], scoreColor, 0);
-            WS2812BSimpleSend(LED_PINS, (uint8_t *)led_array, NUM_LEDS*3);
-            Delay_Ms(300);  // Shorter delay between letters
-            clear();
-            Delay_Ms(50);   // Brief pause after each letter
+            display_letter(message_letters[i],letters_color[message_letters[i]],500);
         }
     }
 }
+
 char* create_name(void){
     int i = 0;
-    char* new_name = malloc(NAME_LENGTH+1);
+    new_name = malloc(NAME_LENGTH+1);
     if (!new_name) return NULL;
 
     int j = 0;
     uint8_t letter_list[5] = {0};
 
     while(j < NAME_LENGTH) {
-        display_letter(i, scoreColor, 600);
+        display_letter(i, letters_color[i], 600);
 
         if(JOY_5_pressed()) {
             while(JOY_5_pressed()) Delay_Ms(20);
@@ -482,7 +554,7 @@ void save_name( uint8_t user_id, const char* name){
 
     // Write to EEPROM
     i2c_write(EEPROM_ADDR, addr, I2C_REGADDR_2B, data, NAME_LENGTH);
-    Delay_Ms(5); // EEPROM write delay
+    Delay_Ms(3); // EEPROM write delay
 
     printf("Name '%s' saved for user %d at addr %d\n", name, user_id, addr);
 }
@@ -1063,6 +1135,7 @@ int main(void) {
 
                    // Save to EEPROM
                    save_currentScore_EEPROM(score);
+                   save_name(Identifier,new_name);
 
                    // Save all scores to EEPROM
 
