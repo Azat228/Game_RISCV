@@ -83,6 +83,9 @@
 #define NAME_LENGTH 3
 #define NAME_START_ADDR 0x0100  // Starting address for name storage
 #define MAX_USERS 3
+#define SCORES_PER_USER MAX_SCORES
+#define SCORE_RECORD_SIZE 2  // Each score record is 2 bytes (index + value)
+#define USER_SCORE_SPACE (SCORES_PER_USER * SCORE_RECORD_SIZE)
 uint8_t is_page_used(uint16_t page_no); // check if page[x] is already used
 uint8_t is_storage_initialized(void);   // check if already initialized data, aka init_status_data is set
 // save opcode data to eeprom, paint 0 stored in page ?? (out of page 0 to 511)
@@ -188,7 +191,8 @@ void save_currentScore_EEPROM(uint8_t score);
 void load_scores(void);
 void reveal_all_scores(void);
 void show_name_and_highest_score(void);
-
+uint8_t load_id(void);
+void save_id(uint8_t user_id);
 // Snake game functions
 void generate_apple(void);
 void game_init(void);
@@ -488,18 +492,20 @@ char* create_name(void) {
         }
 
     new_name[NAME_LENGTH] = '\0'; // Null-terminate
-
+    current_user_id = load_id();
     // Save to the next available slot
     if(current_user_id < MAX_USERS) {
         save_name(current_user_id, new_name);
         strncpy(current_name, new_name, NAME_LENGTH);
         current_user_id++;
+        save_id(current_user_id);
     } else {
         // No more slots - overwrite the oldest
         current_user_id = 0;
         save_name(current_user_id, new_name);
         strncpy(current_name, new_name, NAME_LENGTH);
-        current_user_id++;
+        current_user_id = 1;
+        save_id(current_user_id);
     }
 
     display_full_message(letter_list, NAME_LENGTH, scoreColor, 500);
@@ -517,52 +523,72 @@ char* create_name(void) {
 /*****EEPROM Scores Handling********/
 /***********************************/
 /***********************************/
-void reset_all_scores(void){
-    printf("All scores are reseted");
-    reset_storage();
+void reset_all_scores(void) {
+    // Clear all scores for all users
+    for (uint8_t user = 0; user < MAX_USERS; user++) {
+        uint16_t user_base_addr = SCORE_START_ADDR + (user * USER_SCORE_SPACE);
+        uint8_t empty_data[SCORE_RECORD_SIZE] = {0};
+
+        for (uint8_t i = 0; i < MAX_SCORES; i++) {
+            uint16_t addr = user_base_addr + (i * SCORE_RECORD_SIZE);
+            i2c_write(EEPROM_ADDR, addr, I2C_REGADDR_2B, empty_data, SCORE_RECORD_SIZE);
+            Delay_Ms(3);
+        }
+    }
+
+    printf("All scores for all users reset\n");
 }
 // Save the current score to EEPROM
 void save_currentScore_EEPROM(uint8_t score) {
-    // Find the first empty slot or overwrite the oldest score
+    // Calculate base address for this user's scores
+    uint16_t user_base_addr = SCORE_START_ADDR + (current_user_id * USER_SCORE_SPACE);
+
+    // Find either an empty slot (score=0) or the smallest score to replace
     uint8_t slot = 0;
-    uint8_t found_empty = 0;
+    uint8_t min_score = 255;
+    bool found_empty = false;
 
-    // Try to find an empty slot (score = 0)
     for (uint8_t i = 0; i < MAX_SCORES; i++) {
-        if (scoreHistory[i] == 0) {
+        uint16_t addr = user_base_addr + (i * SCORE_RECORD_SIZE);
+        uint8_t stored_score;
+
+        // Read existing score
+        i2c_read(EEPROM_ADDR, addr + 1, I2C_REGADDR_2B, &stored_score, 1);
+
+        if (stored_score == 0 && !found_empty) {
             slot = i;
-            found_empty = 1;
-            break;
+            found_empty = true;
+        }
+        else if (stored_score < min_score) {
+            min_score = stored_score;
+            slot = i;
         }
     }
 
-    // If no empty slots, find the smallest score to overwrite
-    if (!found_empty) {
-        uint8_t min_score = 255;
-        for (uint8_t i = 0; i < MAX_SCORES; i++) {
-            if (scoreHistory[i] < min_score) {
-                min_score = scoreHistory[i];
-                slot = i;
-            }
-        }
-    }
-    // savings different players scores to different EEPROM location
-    // Only save if the new score is higher than the existing one
-    if (score > scoreHistory[slot]) {
-        scoreHistory[slot] = score;
+    // Only save if new score is higher than the smallest existing score or we found an empty slot
+    if (found_empty || score > min_score) {
+        uint16_t addr = user_base_addr + (slot * SCORE_RECORD_SIZE);
+        uint8_t data[SCORE_RECORD_SIZE] = {slot, score};
 
-        // Calculate EEPROM address for this score (2 bytes per score)
-        uint16_t addr = SCORE_START_ADDR + (slot * SCORE_SIZE) + 20*Identifier;
-
-        // Prepare data to write (index + score)
-        uint8_t data[SCORE_SIZE] = {slot, score};
-
-        // Write to EEPROM
-        i2c_write(EEPROM_ADDR, addr, I2C_REGADDR_2B, data, SCORE_SIZE);
+        i2c_write(EEPROM_ADDR, addr, I2C_REGADDR_2B, data, SCORE_RECORD_SIZE);
         Delay_Ms(3); // EEPROM write delay
 
-        printf("Score %d saved to slot %d at addr %d\n", score, slot, addr);
+        printf("User %d: Score %d saved to slot %d at addr %d\n",
+              current_user_id, score, slot, addr);
     }
+}
+void save_id(uint8_t user_id){
+    uint16_t addr = USER_ID_START_ADDR;
+    i2c_write(EEPROM_ADDR, addr, I2C_REGADDR_2B, &user_id, 1);
+    Delay_Ms(3);
+    printf("User count %d saved\n", user_id);
+}
+uint8_t load_id (void){
+    uint16_t addr = USER_ID_START_ADDR;
+    uint8_t user_count = 0;
+    i2c_read(EEPROM_ADDR, addr, I2C_REGADDR_2B, &user_count, 1);
+    printf("Loaded user count: %d\n", user_count);
+    return user_count;
 }
 void save_name(uint8_t user_id, const char* name) {
     if (user_id >= MAX_USERS) return;
@@ -620,18 +646,18 @@ void load_all_names(char names[MAX_USERS][NAME_LENGTH]) {
 
 void load_scores(void) {
     // Clear current score history
-    for (uint8_t i = 0; i < MAX_SCORES; i++) {
-        scoreHistory[i] = 0;
-    }
-
+    memset(scoreHistory, 0, sizeof(scoreHistory));
     currentScoreIndex = 0;
 
-    // Read all score slots
-    for (uint8_t i = 0; i < MAX_SCORES; i++) {
-        uint16_t addr = SCORE_START_ADDR + (i * SCORE_SIZE) + 20*Identifier;
-        uint8_t data[SCORE_SIZE];
+    // Calculate base address for this user's scores
+    uint16_t user_base_addr = SCORE_START_ADDR + (current_user_id * USER_SCORE_SPACE);
 
-        i2c_read(EEPROM_ADDR, addr, I2C_REGADDR_2B, data, SCORE_SIZE);
+    // Read all score slots for this user
+    for (uint8_t i = 0; i < MAX_SCORES; i++) {
+        uint16_t addr = user_base_addr + (i * SCORE_RECORD_SIZE);
+        uint8_t data[SCORE_RECORD_SIZE];
+
+        i2c_read(EEPROM_ADDR, addr, I2C_REGADDR_2B, data, SCORE_RECORD_SIZE);
 
         // Validate the data (index should match slot)
         if (data[0] == i && data[1] != 0) {
@@ -640,7 +666,7 @@ void load_scores(void) {
         }
     }
 
-    printf("Loaded %d scores from EEPROM\n", currentScoreIndex);
+    printf("Loaded %d scores for user %d\n", currentScoreIndex, current_user_id);
 }
 void reveal_all_scores(void) {
     // Load scores from EEPROM first to ensure we have current data
@@ -697,53 +723,52 @@ void reveal_all_scores(void) {
 // this is shit code function that works, I will think how to rewrite
 void show_name_and_highest_score(void) {
     char names[MAX_USERS][NAME_LENGTH];
-    load_all_names(names);  // Load all names from EEPROM
-
-    uint8_t highest_score[3] = {0};
+    uint8_t highest_scores[MAX_USERS] = {0};
     uint8_t best_player = 0;
-    uint8_t the_most_highest_score = 0;
+    uint8_t global_high_score = 0;
 
-    // Find highest score for each player
-    for (uint8_t player = 0; player < 3; player++) {
-        Identifier = player;
+    // Load all names and find each player's highest score
+    for (uint8_t player = 0; player < MAX_USERS; player++) {
+        load_name(player, names[player]);
+
+        // Temporarily set current_user_id to load this player's scores
+        uint8_t prev_user = current_user_id;
+        current_user_id = player;
         load_scores();
 
+        // Find this player's highest score
         for (uint8_t i = 0; i < MAX_SCORES; i++) {
-            if (scoreHistory[i] > highest_score[player]) {
-                highest_score[player] = scoreHistory[i];
+            if (scoreHistory[i] > highest_scores[player]) {
+                highest_scores[player] = scoreHistory[i];
             }
         }
 
-        if (highest_score[player] > the_most_highest_score) {
-            the_most_highest_score = highest_score[player];
+        // Check if this is the new global high score
+        if (highest_scores[player] > global_high_score) {
+            global_high_score = highest_scores[player];
             best_player = player;
         }
+
+        // Restore current user
+        current_user_id = prev_user;
     }
 
-    // Set Identifier to the best player for display
-    Identifier = best_player;
-
-    // Clear display
+    // Display the best player and their score
     clear();
     WS2812BSimpleSend(LED_PINS, (uint8_t *)led_array, NUM_LEDS * 3);
     Delay_Ms(500);
 
-    // Display player name first
+    // Display player name
     for (int i = 0; i < strlen(names[best_player]); i++) {
-          uint8_t plind = names[best_player][i];
-
-            display_letter(plind, letters_color[plind], 500);
-            Delay_Ms(500);
-            clear();
-
+        uint8_t plind = names[best_player][i] - 'A'; // Convert char to letter index
+        display_letter(plind, letters_color[plind], 500);
+        Delay_Ms(500);
+        clear();
     }
 
-    // Brief pause before showing score
-    Delay_Ms(500);
-
     // Display highest score
-    const uint8_t tenth_digit = the_most_highest_score / 10;
-    const uint8_t unit_digit = the_most_highest_score % 10;
+    const uint8_t tenth_digit = global_high_score / 10;
+    const uint8_t unit_digit = global_high_score % 10;
 
     clear();
     if (tenth_digit > 0) {
@@ -1092,6 +1117,15 @@ int main(void) {
     i2c_init();
     init_storage();
     JOY_sound(1000, 100);
+    current_user_id = load_id();
+    if(current_user_id == 0) {
+            // First time setup - initialize user counter
+         save_id(0);
+    }
+        // Load current user's name if available
+   if(current_user_id > 0) {
+         load_name(current_user_id - 1, current_name);
+   }
     //choosing name
     while(1){
                 choose_your_name();
