@@ -49,8 +49,6 @@
 #define app_icon_page_no (0 * sizeof_paint_data_aspage) //no = 0
 #define app_icon_page_no_max (8 * sizeof_paint_data_aspage) //size = 24
 #define delay 1000
-#define SCORE_START_ADDR 0x0008
-#define USER_ID_START_ADDR 0x1000
 // initialize file storage structure for 32kb/512pages
 // first 8 pages are used for status
 //Letters define
@@ -86,6 +84,8 @@
 #define SCORES_PER_USER MAX_SCORES
 #define SCORE_RECORD_SIZE 2  // Each score record is 2 bytes (index + value)
 #define USER_SCORE_SPACE (SCORES_PER_USER * SCORE_RECORD_SIZE)
+#define SCORE_START_ADDR 0x0008
+#define USER_ID_START_ADDR 0x0200
 uint8_t is_page_used(uint16_t page_no); // check if page[x] is already used
 uint8_t is_storage_initialized(void);   // check if already initialized data, aka init_status_data is set
 // save opcode data to eeprom, paint 0 stored in page ?? (out of page 0 to 511)
@@ -399,38 +399,6 @@ void display_letter(uint8_t letter_idx, color_t color, int delay_ms) {
     Delay_Ms(delay_ms);
     clear();
 }
-// Name selection handler
-/*void available_names(uint8_t num_name) {
-    Identifier = num_name;  // Set global identifier
-
-    switch(num_name) {
-        case 0:  // "JOHN"
-            display_letter(LETTER_J, scoreColor, 500);
-            display_letter(LETTER_O, scoreColor, 500);
-            display_letter(LETTER_H, scoreColor, 500);
-            display_letter(LETTER_N, scoreColor, 500);
-            break;
-
-        case 1:  // "ALICE"
-            display_letter(LETTER_A, scoreColor, 500);
-            display_letter(LETTER_L, scoreColor, 500);
-            display_letter(LETTER_I, scoreColor, 500);
-            display_letter(LETTER_C, scoreColor, 500);
-            display_letter(LETTER_E, scoreColor, 500);
-            break;
-
-        case 2:  // "KEN"
-            display_letter(LETTER_K, scoreColor, 500);
-            display_letter(LETTER_E, scoreColor, 500);
-            display_letter(LETTER_N, scoreColor, 500);
-            break;
-
-        default:
-            // Handle invalid input
-            break;
-    }
-}
-*/
 void display_full_message(const uint8_t* letters, uint8_t count, color_t color, uint16_t delay_ms) {
     for (uint8_t i = 0; i < count; i++) {
         Letter_draw(Letter_List[letters[i]], letters_color[letters[i]], 0);
@@ -525,16 +493,7 @@ char* create_name(void) {
 /***********************************/
 void reset_all_scores(void) {
     // Clear all scores for all users
-    for (uint8_t user = 0; user < MAX_USERS; user++) {
-        uint16_t user_base_addr = SCORE_START_ADDR + (user * USER_SCORE_SPACE);
-        uint8_t empty_data[SCORE_RECORD_SIZE] = {0};
-
-        for (uint8_t i = 0; i < MAX_SCORES; i++) {
-            uint16_t addr = user_base_addr + (i * SCORE_RECORD_SIZE);
-            i2c_write(EEPROM_ADDR, addr, I2C_REGADDR_2B, empty_data, SCORE_RECORD_SIZE);
-            Delay_Ms(3);
-        }
-    }
+    reset_storage();
 
     printf("All scores for all users reset\n");
 }
@@ -634,7 +593,7 @@ void get_current_user_name(char* buffer) {
         strcpy(buffer, "PLAYER");
         return;
     }
-    load_name(current_user_id - 1, buffer);  // Load last saved user
+    load_name(current_user_id, buffer);  // Load last saved user
 }
 
 // Load all names from EEPROM
@@ -759,7 +718,7 @@ void show_name_and_highest_score(void) {
     Delay_Ms(500);
 
     // Display player name
-    for (int i = 0; i < strlen(names[best_player]); i++) {
+    for (int i = 0; i < 3; i++) {
         uint8_t plind = names[best_player][i] - 'A'; // Convert char to letter index
         display_letter(plind, letters_color[plind], 500);
         Delay_Ms(500);
