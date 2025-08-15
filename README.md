@@ -1,20 +1,25 @@
-# Multiplayer Snake Game
+# Multiplayer games
 
-A classic snake game with embedded multiplayer support for up to 3 players, featuring persistent score storage in EEPROM.
+A classic snake game with embedded multiplayer support for up to 3 players, featuring persistent score storage in EEPROM <br>
+A classic breakout game with embedded multiplayer support for up to 3 players, featuring persistent score storage in EEPROM.
 
 ## Features
 
-- Multiplayer support for 3 simultaneous players
+- Multiplayer support for 3  players
 - Persistent high score storage in EEPROM
 - Simple name selection system
 
 ## Controls
 
 ### Name Selection (At Startup)
-Choose your player name from the predefined options:
-- *Button 1*: Select name "John"
-- *Button 4*: Select name "Alice"
-- *Button 7*: Select name "Ken"
+Create your names, and then choose any names you like
+- *Button 1*: First Name
+- *Button 4*: Second Name
+- *Button 7*: Third Name
+### Game Selection (At Startup)
+Choose the game you like
+- *Button 3*: Snake Game
+- *Button 9*: Breakout Game
 
 
 ### Score Management
@@ -22,22 +27,24 @@ Choose your player name from the predefined options:
 - *Button 3*: Erase all saved scores (reset all high scores)
 - *Button 7*: shows the highest score, and the corresponding name of a player 
 =======
-# Snake Game for RISC-V Inspire Computer
+#Game for RISC-V Inspire Computer
 
 ![Inspire Computer](https://github.com/user-attachments/assets/c666a969-0a7b-4e4c-9170-0d6622b96ce6)
 
 ## Features
 
-### Game Controls
+### Game Controls(Snake game)
 - *2* - Move Up
 - *4* - Move Left  
 - *6* - Move Right
 - *8* - Move Down
-
+### Game Controls(Breakout Game)
+- *4* - Move Left  
+- *6* - Move Right
+  
 ### Utility Buttons
 - *5* - Reset game after Game Over
-- *1* - Change game speed (3 levels)
-- *3* - View score history
+- *1* - Change game speed (for snake game only)
 
 ## Installation
 
@@ -50,14 +57,18 @@ Choose your player name from the predefined options:
 1. Install MounRiver Studio
 2. Open Snake_game.wvproj project
 3. Click *Rebuild* to compile
-4. Connect Inspire computer via WHCLink-E
-5. Donwload into the Inspire computer
+4. Connect the Inspire computer via WHCLink-E
+5. Download into the Inspire computer
 6. Launch the game!
 
-## Gameplay
+## Gameplay(Snake)
 - Guide the snake to eat food and grow
 - Avoid walls and self-collision
 - Higher speeds increase difficulty
+- Previous scores are saved between sessions
+## Gameplay(Breakout)
+- Guide the paddle to hit the balls
+- Avoid the ball from falling to the ground
 - Previous scores are saved between sessions
 
 ## Contributors
@@ -67,3 +78,4 @@ Choose your player name from the predefined options:
 - Ensure proper display connections
 - Verify button input functionality
 - Check programmer connection if flashing fails
+
