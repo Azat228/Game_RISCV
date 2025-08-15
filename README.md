@@ -1,7 +1,10 @@
 # Multiplayer games
-
 A classic snake game with embedded multiplayer support for up to 3 players, featuring persistent score storage in EEPROM <br>
-A classic breakout game with embedded multiplayer support for up to 3 players, featuring persistent score storage in EEPROM.
+A classic breakout game with embedded multiplayer support for up to 3 players, featuring persistent score storage in EEPROM.<br>
+This is implemented in the InspireComputer:<br>
+#Game for RISC-V Inspire Computer
+![Inspire Computer](https://github.com/user-attachments/assets/c666a969-0a7b-4e4c-9170-0d6622b96ce6)
+
 
 ## Features
 
@@ -27,9 +30,6 @@ Choose the game you like
 - *Button 3*: Erase all saved scores (reset all high scores)
 - *Button 7*: shows the highest score, and the corresponding name of a player 
 =======
-#Game for RISC-V Inspire Computer
-
-![Inspire Computer](https://github.com/user-attachments/assets/c666a969-0a7b-4e4c-9170-0d6622b96ce6)
 
 ## Features
 
@@ -78,4 +78,5 @@ Choose the game you like
 - Ensure proper display connections
 - Verify button input functionality
 - Check programmer connection if flashing fails
+
 
