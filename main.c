@@ -749,6 +749,198 @@ void show_name_and_highest_score(void) {
     clear();
     WS2812BSimpleSend(LED_PINS, (uint8_t *)led_array, NUM_LEDS * 3);
 }
+/*********************************************/
+/*********************************************/
+/***************Brekaout Score handling*******/
+/*********************************************/
+/*********************************************/
+void save_currentScore_EEPROM_1(uint8_t score) {
+    // Calculate base address for this user's breakout scores
+    // We'll use a different address space (0x0208) for breakout scores
+    uint16_t user_base_addr = 0x0208 + (current_user_id * USER_SCORE_SPACE);
+
+    // Find either an empty slot (score=0) or the smallest score to replace
+    uint8_t slot = 0;
+    uint8_t min_score = 255;
+    bool found_empty = false;
+
+    for (uint8_t i = 0; i < MAX_SCORES; i++) {
+        uint16_t addr = user_base_addr + (i * SCORE_RECORD_SIZE);
+        uint8_t stored_score;
+
+        // Read existing score
+        i2c_read(EEPROM_ADDR, addr + 1, I2C_REGADDR_2B, &stored_score, 1);
+
+        if (stored_score == 0 && !found_empty) {
+            slot = i;
+            found_empty = true;
+        }
+        else if (stored_score < min_score) {
+            min_score = stored_score;
+            slot = i;
+        }
+    }
+
+    // Only save if new score is higher than the smallest existing score or we found an empty slot
+    if (found_empty || score > min_score) {
+        uint16_t addr = user_base_addr + (slot * SCORE_RECORD_SIZE);
+        uint8_t data[SCORE_RECORD_SIZE] = {slot, score};
+
+        i2c_write(EEPROM_ADDR, addr, I2C_REGADDR_2B, data, SCORE_RECORD_SIZE);
+        Delay_Ms(3); // EEPROM write delay
+
+        printf("Breakout: User %d: Score %d saved to slot %d at addr %d\n",
+              current_user_id, score, slot, addr);
+    }
+}
+
+void load_scores_1(void) {
+    // Clear current score history
+    memset(scoreHistory_1, 0, sizeof(scoreHistory_1));
+    currentScoreIndex_1 = 0;
+
+    // Calculate base address for this user's breakout scores
+    uint16_t user_base_addr = 0x0208 + (current_user_id * USER_SCORE_SPACE);
+
+    // Read all score slots for this user
+    for (uint8_t i = 0; i < MAX_SCORES; i++) {
+        uint16_t addr = user_base_addr + (i * SCORE_RECORD_SIZE);
+        uint8_t data[SCORE_RECORD_SIZE];
+
+        i2c_read(EEPROM_ADDR, addr, I2C_REGADDR_2B, data, SCORE_RECORD_SIZE);
+
+        // Validate the data (index should match slot)
+        if (data[0] == i && data[1] != 0) {
+            scoreHistory_1[i] = data[1];
+            currentScoreIndex_1++;
+        }
+    }
+
+    printf("Loaded %d breakout scores for user %d\n", currentScoreIndex_1, current_user_id);
+}
+
+void reveal_all_scores_1(void) {
+    // Load scores from EEPROM first to ensure we have current data
+    load_scores_1();
+
+    // Clear the display
+    clear();
+    WS2812BSimpleSend(LED_PINS, (uint8_t *)led_array, NUM_LEDS * 3);
+    Delay_Ms(500);
+
+    // Display each score with its position
+    for (uint8_t i = 0; i < MAX_SCORES; i++) {
+        if (scoreHistory_1[i] == 0) continue; // Skip empty slots
+
+        // First show which score this is (1-10)
+        clear();
+        set_color(63, scoreColor); // Indicator LED for score position
+
+        // Display position number (1-10) on right side
+        if (i < 9) {
+            // Positions 1-9 (display single digit)
+            font_draw(font_list[i+1], scoreColor, 0); // +1 because positions start at 1
+        } else {
+            // Position 10 (special case)
+            font_draw(font_list[1], scoreColor, 4); // '1'
+            font_draw(font_list[0], scoreColor, 0);  // '0'
+        }
+        WS2812BSimpleSend(LED_PINS, (uint8_t *)led_array, NUM_LEDS * 3);
+        Delay_Ms(1000);
+
+        // Then show the actual score value
+        clear();
+        const uint8_t tenth_digit = scoreHistory_1[i] / 10;
+        const uint8_t unit_digit = scoreHistory_1[i] % 10;
+
+        // Display score value
+        if (tenth_digit > 0) {
+            font_draw(font_list[tenth_digit], scoreColor, 4); // Tens place
+        }
+        font_draw(font_list[unit_digit], scoreColor, 0);      // Units place
+        WS2812BSimpleSend(LED_PINS, (uint8_t *)led_array, NUM_LEDS * 3);
+        Delay_Ms(1500);
+
+        // Brief pause between scores
+        clear();
+        WS2812BSimpleSend(LED_PINS, (uint8_t *)led_array, NUM_LEDS * 3);
+        Delay_Ms(300);
+    }
+
+    // Final clear
+    clear();
+    WS2812BSimpleSend(LED_PINS, (uint8_t *)led_array, NUM_LEDS * 3);
+}
+
+void show_name_and_highest_score_1(void) {
+    char names[MAX_USERS][NAME_LENGTH];
+    uint8_t highest_scores[MAX_USERS] = {0};
+    uint8_t best_player = 0;
+    uint8_t global_high_score = 0;
+
+    // Load all names and find each player's highest score
+    for (uint8_t player = 0; player < MAX_USERS; player++) {
+        load_name(player, names[player]);
+
+        // Temporarily set current_user_id to load this player's scores
+        uint8_t prev_user = current_user_id;
+        current_user_id = player;
+        load_scores_1();
+
+        // Find this player's highest score
+        for (uint8_t i = 0; i < MAX_SCORES; i++) {
+            if (scoreHistory_1[i] > highest_scores[player]) {
+                highest_scores[player] = scoreHistory_1[i];
+            }
+        }
+
+        // Check if this is the new global high score
+        if (highest_scores[player] > global_high_score) {
+            global_high_score = highest_scores[player];
+            best_player = player;
+        }
+
+        // Restore current user
+        current_user_id = prev_user;
+    }
+
+    // Display the best player and their score
+    clear();
+    WS2812BSimpleSend(LED_PINS, (uint8_t *)led_array, NUM_LEDS * 3);
+    Delay_Ms(500);
+
+    // Display player name
+    for (int i = 0; i < 3; i++) {
+        uint8_t plind = names[best_player][i] - 'A'; // Convert char to letter index
+        display_letter(plind, letters_color[plind], 500);
+        Delay_Ms(500);
+        clear();
+    }
+
+    // Display highest score
+    const uint8_t tenth_digit = global_high_score / 10;
+    const uint8_t unit_digit = global_high_score % 10;
+
+    clear();
+    if (tenth_digit > 0) {
+        font_draw(font_list[tenth_digit], scoreColor, 4);
+    }
+    font_draw(font_list[unit_digit], scoreColor, 0);
+    WS2812BSimpleSend(LED_PINS, (uint8_t *)led_array, NUM_LEDS * 3);
+    Delay_Ms(2000);
+
+    // Clear display when done
+    clear();
+    WS2812BSimpleSend(LED_PINS, (uint8_t *)led_array, NUM_LEDS * 3);
+}
+
+// Update the breakout game loop to use these functions:
+// In the breakout game section (after gameOver_1 = true), replace:
+/*********************************************/
+/*********************************************/
+/***************Brekaout Score handling*******/
+/*********************************************/
+/*********************************************/
 /***********************************/
 /***********************************/
 /*****EEPROM Scores Handling********/
@@ -1266,21 +1458,53 @@ int main(void) {
                          save_score_1();
                          show_current_score_1();
                          Delay_Ms(200);
+                         if(gameOver_1) {
+                             // Save the current score
+                             if(currentScoreIndex_1 < MAX_SCORES) {
+                                 scoreHistory_1[currentScoreIndex_1] = score_1;
+                                 currentScoreIndex_1++;
+                             }
 
-                         // Wait for action
-                         while (1) {
-                             if (JOY_7_pressed()) {
-                                 while (JOY_7_pressed()) Delay_Ms(10);
-                                 show_score_history_1();
-                                 Delay_Ms(800);
-                                 break;
+                             // Save to EEPROM
+                             save_currentScore_EEPROM_1(score_1);
+
+                             // Show current score with flashing
+                             for(uint8_t i = 0; i < 3; i++) {
+                                 show_current_score_1();
+                                 Delay_Ms(500);
+                                 clear();
+                                 WS2812BSimpleSend(LED_PINS, (uint8_t *)led_array, NUM_LEDS * 3);
+                                 Delay_Ms(200);
                              }
-                             if (JOY_5_pressed()) {
-                                 while (JOY_5_pressed()) Delay_Ms(10);
-                                 break;
+
+                             // Post-game menu
+                             uint32_t timeout = 10000; // 10 second timeout
+                             while(timeout > 0) {
+                                 if(JOY_3_pressed()) {
+                                     while(JOY_3_pressed()) Delay_Ms(10);
+                                     reset_all_scores();
+                                     timeout = 10000; // Reset timeout
+                                 }
+                                 else if (JOY_7_pressed()) {
+                                     while(JOY_7_pressed()) Delay_Ms(10); // Debounce
+                                     show_name_and_highest_score_1();
+                                     Delay_Ms(500); // Prevent immediate re-trigger
+                                 }
+                                 else if(JOY_5_pressed()) {
+                                     while(JOY_5_pressed()) Delay_Ms(10);
+                                     break; // Restart game
+                                 }
+                                 else if (JOY_9_pressed()) {
+                                     while(JOY_9_pressed()) Delay_Ms(10); // Debounce
+                                     reveal_all_scores_1();
+                                     Delay_Ms(500); // Prevent immediate re-trigger
+                                 }
+
+                                 Delay_Ms(10);
+                                 timeout -= 10;
                              }
-                             Delay_Ms(10);
                          }
+
 
          }
     }
