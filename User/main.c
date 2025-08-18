@@ -10,6 +10,8 @@
 #include "./data/fonts.h"
 #include "./data/music.h"
 #include "./ch32v003fun/ws2812b_simple.h"
+#include "data/Clean_code_func/colors_predefined.h"
+#include "data/Clean_code_func/fonts8x8.h"
 #define LED_PINS GPIOA, 2
 // Game constants
 #define INITIAL_SPEED 500  // ms between moves
@@ -49,9 +51,6 @@
 #define app_icon_page_no (0 * sizeof_paint_data_aspage) //no = 0
 #define app_icon_page_no_max (8 * sizeof_paint_data_aspage) //size = 24
 #define delay 1000
-// initialize file storage structure for 32kb/512pages
-// first 8 pages are used for status
-//Letters define
 #define LETTER_A  0
 #define LETTER_B  1
 #define LETTER_C  2
@@ -73,11 +72,14 @@
 #define LETTER_S  18
 #define LETTER_T  19
 #define LETTER_U  20
-#define LETTER_v  21
+#define LETTER_V  21
 #define LETTER_W  22
 #define LETTER_X  23
 #define LETTER_Y  24
 #define LETTER_Z  25
+// initialize file storage structure for 32kb/512pages
+// first 8 pages are used for status
+//Letters define
 #define NAME_LENGTH 3
 #define NAME_START_ADDR 0x0100  // Starting address for name storage
 #define MAX_USERS 3
@@ -86,12 +88,6 @@
 #define USER_SCORE_SPACE (SCORES_PER_USER * SCORE_RECORD_SIZE)
 #define SCORE_START_ADDR 0x0008
 #define USER_ID_START_ADDR 0x0200
-uint8_t is_page_used(uint16_t page_no); // check if page[x] is already used
-uint8_t is_storage_initialized(void);   // check if already initialized data, aka init_status_data is set
-// save opcode data to eeprom, paint 0 stored in page ?? (out of page 0 to 511)
-uint16_t calculate_page_no(uint16_t paint_no, uint8_t is_icon);
-
-
 typedef struct snakePartDir {
     char part;      // 'h'=head, 'b'=body, 't'=tail, 'a'=apple, '0'=empty
     int8_t direction; // movement direction
@@ -104,46 +100,6 @@ typedef struct ball_t{
     int8_t x, y;
     int8_t dx, dy;
 } ball_t;
-// Colors
-color_t appleColor = {.r = 255, .g = 0, .b = 0};        // red
-color_t snakeHeadColor = {.r = 0, .g = 45, .b = 45};    // cyan
-color_t snakeBodyColor = {.r = 51, .g = 255, .b = 51};  // green
-color_t snakeTailColor = {.r = 55, .g = 12, .b = 51};   // yellow
-color_t blankColor = {.r = 0, .g = 0, .b = 0};          // off
-color_t scoreColor = {.r = 90, .g = 55, .b = 12};    // green for scores
-color_t speedBoostColor = {.r = 255, .g = 0, .b = 255}; // Purple indicator
-color_t brickColor = {.r = 200, .g = 80, .b = 10};
-color_t paddleColor = {.r = 10, .g = 100, .b = 255};
-color_t ballColor = {.r = 255, .g = 255, .b = 255};
-//colors of the letters
-color_t letters_color[26] = {
-    {.r=255, .g=0,   .b=0},      // A - Red
-    {.r=0,   .g=128, .b=255},    // B - Sky Blue
-    {.r=255, .g=140, .b=0},      // C - Orange
-    {.r=34,  .g=139, .b=34},     // D - Forest Green
-    {.r=255, .g=255, .b=0},      // E - Yellow
-    {.r=255, .g=20,  .b=147},    // F - Deep Pink
-    {.r=0,   .g=255, .b=255},    // G - Cyan
-    {.r=138, .g=43,  .b=226},    // H - Blue Violet
-    {.r=210, .g=105, .b=30},     // I - Chocolate
-    {.r=255, .g=69,  .b=0},      // J - Red Orange
-    {.r=0,   .g=255, .b=0},      // K - Lime
-    {.r=135, .g=206, .b=250},    // L - Light Sky Blue
-    {.r=128, .g=0,   .b=128},    // M - Purple
-    {.r=255, .g=215, .b=0},      // N - Gold
-    {.r=0,   .g=0,   .b=255},    // O - Blue
-    {.r=255, .g=192, .b=203},    // P - Pink
-    {.r=255, .g=255, .b=255},    // Q - White
-    {.r=0,   .g=255, .b=127},    // R - Spring Green
-    {.r=139, .g=69,  .b=19},     // S - Saddle Brown
-    {.r=240, .g=230, .b=140},    // T - Khaki
-    {.r=255, .g=99,  .b=71},     // U - Tomato
-    {.r=64,  .g=224, .b=208},    // V - Turquoise
-    {.r=255, .g=0,   .b=255},    // W - Magenta
-    {.r=47,  .g=79,  .b=79},     // X - Dark Slate Gray
-    {.r=0,   .g=0,   .b=139},    // Y - Dark Blue
-    {.r=173, .g=255, .b=47}      // Z - Green Yellow
-};
 // Game state
 snakePartDir gameBoard[GRID_SIZE * GRID_SIZE];
 int8_t snakeHead, snakeTail;
@@ -166,21 +122,25 @@ char current_name[NAME_LENGTH] = {0};
 char* new_name;
 //function prototypes
 // Storage functions
+//uint8_t is_page_used(uint16_t page_no); // check if page[x] is already used
+uint8_t is_storage_initialized(void);   // check if already initialized data, aka init_status_data is set
+// save opcode data to eeprom, paint 0 stored in page ?? (out of page 0 to 511)
+//uint16_t calculate_page_no(uint16_t paint_no, uint8_t is_icon);
 void init_storage(void);
-void save_paint(uint16_t paint_no, color_t *data, uint8_t is_icon);
-void load_paint(uint16_t paint_no, color_t *data, uint8_t is_icon);
-void set_page_status(uint16_t page_no, uint8_t status);
+//void save_paint(uint16_t paint_no, color_t *data, uint8_t is_icon);
+//void load_paint(uint16_t paint_no, color_t *data, uint8_t is_icon);
+//void set_page_status(uint16_t page_no, uint8_t status);
 void reset_storage(void);
-void print_status_storage(void);
-uint8_t is_page_used(uint16_t page_no);
+//void print_status_storage(void);
+//uint8_t is_page_used(uint16_t page_no);
 uint8_t is_storage_initialized(void);
-uint16_t calculate_page_no(uint16_t paint_no, uint8_t is_icon);
+//uint16_t calculate_page_no(uint16_t paint_no, uint8_t is_icon);
 
 // Name handling functions
 void display_letter(uint8_t letter_idx, color_t color, int delay_ms);
 void display_full_message(const uint8_t* letters, uint8_t count, color_t color, uint16_t delay_ms);
-char* create_name(void);
 void choose_your_name(void);
+char* create_name(void);
 void save_name(uint8_t user_id, const char* name);
 void load_name(uint8_t user_id, char* buffer);
 void load_all_names(char names[MAX_USERS][NAME_LENGTH]);
@@ -204,7 +164,7 @@ bool check_collision(int8_t newHeadPos);
 void move_snake(int8_t newDirection, bool ateApple);
 void show_current_score(void);
 void show_score_history(void);
-
+/*
 // Breakout game functions
 void clear_board_1(void);
 void display_1(void);
@@ -216,7 +176,7 @@ void show_score_history_1(void);
 void move_ball(void);
 uint8_t number_of_blocks(void);
 bool bricks_remaining(void);
-
+*/
 /****************/
 /****************/
 /*****SNAKE Game********/
@@ -300,7 +260,7 @@ bool check_collision(int8_t newHeadPos) {
 
     // Check if new head position wraps around the grid edges
     int8_t col = newHeadPos % GRID_SIZE;
-    int8_t row = newHeadPos / GRID_SIZE;
+    //int8_t row = newHeadPos / GRID_SIZE;
 
     // Check left/right wall collision
     if ((col == 0 && gameBoard[snakeHead].direction == 1) ||
@@ -424,8 +384,6 @@ void choose_your_name(void) {
         }
     }
 }
-
-
 char* create_name(void) {
     int i = 0;
     new_name = malloc(NAME_LENGTH+1);
@@ -749,11 +707,13 @@ void show_name_and_highest_score(void) {
     clear();
     WS2812BSimpleSend(LED_PINS, (uint8_t *)led_array, NUM_LEDS * 3);
 }
+
 /*********************************************/
 /*********************************************/
 /***************Brekaout Score handling*******/
 /*********************************************/
 /*********************************************/
+/*
 void save_currentScore_EEPROM_1(uint8_t score) {
     // Calculate base address for this user's breakout scores
     // We'll use a different address space (0x0208) for breakout scores
@@ -933,7 +893,7 @@ void show_name_and_highest_score_1(void) {
     clear();
     WS2812BSimpleSend(LED_PINS, (uint8_t *)led_array, NUM_LEDS * 3);
 }
-
+*/
 // Update the breakout game loop to use these functions:
 // In the breakout game section (after gameOver_1 = true), replace:
 /*********************************************/
@@ -985,7 +945,7 @@ void reset_storage(void) {
     }
     printf("Storage reset\n");
 }
-
+/*
 void print_status_storage(void) {
     printf("Status storage data:\n");
     for (uint16_t addr = init_status_addr_begin;
@@ -1096,6 +1056,7 @@ void load_paint(uint16_t paint_no, color_t * data, uint8_t is_icon) {
     Delay_Ms(3);
     printf("Paint %d loaded\n", paint_no);
 }
+*/
 // Show all scores with flashing animation
 
 //
@@ -1112,6 +1073,7 @@ void load_paint(uint16_t paint_no, color_t * data, uint8_t is_icon) {
 /***************************Brekout Game**************************************/
 /***************************************************************************/
 /***************************************************************************/
+/*
 void clear_board_1(void) {
     for (int i = 0; i < GRID_SIZE * GRID_SIZE; i++)
         gameBoard_1[i].part = '0';
@@ -1261,9 +1223,92 @@ bool bricks_remaining(void) {
             return true;
     return false;
 }
+*/
 /***************************************************************************/
 /***************************************************************************/
 /***************************Brekout Game************************************/
+/***************************************************************************/
+/***************************************************************************/
+
+
+/***************************************************************************/
+/***************************************************************************/
+/***************************Scroling name************************************/
+/***************************************************************************/
+/***************************************************************************/
+extern const uint8_t font_8x8[256][8];
+
+typedef struct {
+    uint8_t buffer[8][16];  // Double width buffer for scrolling (8 rows, 16 columns)
+    uint16_t cursor;
+    float frameWaitTime;
+} ScrollingText8x8Reveal;
+
+void initReveal(ScrollingText8x8Reveal *reveal) {
+    memset(reveal->buffer, 0, sizeof(reveal->buffer));
+    reveal->frameWaitTime = 1000.0 / (60 * 8);  // 60fps * 8 rows
+    reveal->cursor = 0;
+}
+
+static void byteToBinary(uint8_t byteIn, uint8_t binaryOut[8]) {
+    for (uint8_t n = 0; n < 8; n++) {
+        binaryOut[7 - n] = (byteIn >> n) & 1;
+    }
+}
+
+void revealCharacter(ScrollingText8x8Reveal *reveal, uint8_t character, uint32_t duration, color_t color) {
+    uint8_t charMatrix[8][8];
+
+    // Convert font data to binary matrix
+    for (uint8_t row = 0; row < 8; row++) {
+        uint8_t binary[8];
+        byteToBinary(font_8x8[character][row], binary);
+        for (uint8_t col = 0; col < 8; col++) {
+            charMatrix[row][col] = binary[col];
+        }
+    }
+
+    // Add character to buffer (right side)
+    uint8_t bufferIndex = (reveal->cursor < 8) ? 1 : 0;
+    for (uint8_t row = 0; row < 8; row++) {
+        for (uint8_t col = 0; col < 8; col++) {
+            reveal->buffer[row][col + (bufferIndex * 8)] = charMatrix[row][col];
+        }
+    }
+
+    // Scroll animation
+    for (uint8_t step = 0; step < 8; step++) {
+        uint32_t currentDuration = 0;
+        while (currentDuration < duration) {
+            clear();
+
+            // Display current window
+            for (uint8_t row = 0; row < 8; row++) {
+                for (uint8_t col = 0; col < 8; col++) {
+                    uint8_t bufCol = (reveal->cursor + col) % 16;
+                    if (reveal->buffer[row][bufCol]) {
+                        set_color(row * 8 + col, color);
+                    }
+                }
+            }
+
+            WS2812BSimpleSend(LED_PINS, (uint8_t *)led_array, NUM_LEDS * 3);
+            Delay_Ms(reveal->frameWaitTime);
+            currentDuration += reveal->frameWaitTime;
+        }
+
+        reveal->cursor = (reveal->cursor + 1) % 16;
+    }
+}
+
+void revealText(ScrollingText8x8Reveal *reveal, const char *text, uint32_t speed, color_t color) {
+    for (uint32_t i = 0; text[i] != '\0'; i++) {
+        revealCharacter(reveal, text[i], speed, color);
+    }
+}
+/***************************************************************************/
+/***************************************************************************/
+/***************************Scroling name************************************/
 /***************************************************************************/
 /***************************************************************************/
 //Sorry for shit code:(, especially part with EEPROM
@@ -1285,6 +1330,11 @@ int main(void) {
    if(current_user_id > 0) {
          load_name(current_user_id - 1, current_name);
    }
+   ScrollingText8x8Reveal scroller;
+   initReveal(&scroller);
+
+   // Display scrolling text
+   revealText(&scroller, "HELLO", 100, scoreColor);  // 100ms per character
     //choosing name
     while(1){
                 choose_your_name();
@@ -1424,7 +1474,7 @@ int main(void) {
             }
         }
         }
-        if(JOY_9_pressed()){//breakout_game init
+     /*   if(JOY_9_pressed()){//breakout_game init
              while (JOY_9_pressed()) Delay_Ms(10);
                          breakout_init();
                          display_1();
@@ -1507,6 +1557,7 @@ int main(void) {
 
 
          }
+         */
     }
     return 0;
 }
