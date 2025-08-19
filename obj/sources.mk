@@ -26,5 +26,6 @@ SUBDIRS := \
 Core \
 Startup \
 User/ch32v003fun \
+User/ch32v003fun/inc \
 User \
 

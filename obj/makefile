@@ -9,6 +9,7 @@ RM := rm -rf
 
 # All of the sources participating in the build are defined here
 -include sources.mk
+-include User/ch32v003fun/inc/subdir.mk
 -include User/ch32v003fun/subdir.mk
 -include User/subdir.mk
 -include Startup/subdir.mk
@@ -52,7 +53,7 @@ all: Snake_game.elf secondary-outputs
 
 # Tool invocations
 Snake_game.elf: $(OBJS) $(USER_OBJS)
-	@	@	riscv-none-embed-gcc -march=rv32ecxw -mabi=ilp32e -msmall-data-limit=0 -msave-restore -Os -fmessage-length=0 -fsigned-char -ffunction-sections -fdata-sections -fno-common -Wunused -Wuninitialized  -g -T "C:\Users\azati\OneDrive\Desktop\Game_RISCV-main\Game_RISCV-main\Ld\Link.ld" -nostartfiles -Xlinker --gc-sections -Wl,-Map,"Snake_game.map" --specs=nano.specs --specs=nosys.specs -o "Snake_game.elf" $(OBJS) $(USER_OBJS) $(LIBS) -lprintf
+	@	@	riscv-none-embed-gcc -march=rv32ecxw -mabi=ilp32e -msmall-data-limit=0 -msave-restore -Os -fmessage-length=0 -fsigned-char -ffunction-sections -fdata-sections -fno-common -Wunused -Wuninitialized  -g -T "C:\Users\azati\OneDrive\Desktop\Game_RISCV\Ld\Link.ld" -nostartfiles -Xlinker --gc-sections -Wl,-Map,"Snake_game.map" --specs=nano.specs --specs=nosys.specs -o "Snake_game.elf" $(OBJS) $(USER_OBJS) $(LIBS) -lprintf
 	@	@
 Snake_game.hex: Snake_game.elf
 	@	riscv-none-embed-objcopy -O ihex "Snake_game.elf"  "Snake_game.hex"

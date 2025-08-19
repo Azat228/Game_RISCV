@@ -11,7 +11,7 @@
 #include "./data/music.h"
 #include "./ch32v003fun/ws2812b_simple.h"
 #include "data/Clean_code_func/colors_predefined.h"
-#include "data/Clean_code_func/fonts8x8.h"
+//#include "data/Clean_code_func/fonts8x8.h"
 #define LED_PINS GPIOA, 2
 // Game constants
 #define INITIAL_SPEED 500  // ms between moves
@@ -1236,85 +1236,136 @@ bool bricks_remaining(void) {
 /***************************Scroling name************************************/
 /***************************************************************************/
 /***************************************************************************/
+typedef struct {
+    uint8_t ascii;   // Character code
+    uint8_t data[8]; // 8 columns, MSB is top row (bit7=top .. bit0=bottom)
+} FontChar;
+
+// Font (8x8 columns). One column of space (0x00) between letters implied in scroller.
+const FontChar font_chars[] = {
+    {' ', {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}},
+    {'A', {0x18, 0x3C, 0x66, 0x7E, 0x66, 0x66, 0x66, 0x00}},
+    {'B', {0x7C, 0x66, 0x66, 0x7C, 0x66, 0x66, 0x7C, 0x00}},
+    {'C', {0x3C, 0x66, 0x60, 0x60, 0x60, 0x66, 0x3C, 0x00}},
+    {'D', {0x78, 0x6C, 0x66, 0x66, 0x66, 0x6C, 0x78, 0x00}},
+    {'E', {0x7E, 0x60, 0x60, 0x78, 0x60, 0x60, 0x7E, 0x00}},
+    {'F', {0x7E, 0x60, 0x60, 0x78, 0x60, 0x60, 0x60, 0x00}},
+    {'G', {0x3C, 0x66, 0x60, 0x6E, 0x66, 0x66, 0x3C, 0x00}},
+    {'H', {0x66, 0x66, 0x66, 0x7E, 0x66, 0x66, 0x66, 0x00}},
+    {'I', {0x3C, 0x18, 0x18, 0x18, 0x18, 0x18, 0x3C, 0x00}},
+    {'J', {0x1E, 0x0C, 0x0C, 0x0C, 0x0C, 0x6C, 0x38, 0x00}},
+    {'K', {0x66, 0x6C, 0x78, 0x70, 0x78, 0x6C, 0x66, 0x00}},
+    {'L', {0x60, 0x60, 0x60, 0x60, 0x60, 0x60, 0x7E, 0x00}},
+    {'M', {0x63, 0x77, 0x7F, 0x6B, 0x63, 0x63, 0x63, 0x00}},
+    {'N', {0x66, 0x76, 0x7E, 0x7E, 0x6E, 0x66, 0x66, 0x00}},
+    {'O', {0x3C, 0x66, 0x66, 0x66, 0x66, 0x66, 0x3C, 0x00}},
+    {'P', {0x7C, 0x66, 0x66, 0x7C, 0x60, 0x60, 0x60, 0x00}},
+    {'Q', {0x3C, 0x66, 0x66, 0x66, 0x66, 0x3C, 0x0E, 0x00}},
+    {'R', {0x7C, 0x66, 0x66, 0x7C, 0x78, 0x6C, 0x66, 0x00}},
+    {'S', {0x3C, 0x66, 0x60, 0x3C, 0x06, 0x66, 0x3C, 0x00}},
+    {'T', {0x7E, 0x18, 0x18, 0x18, 0x18, 0x18, 0x18, 0x00}},
+    {'U', {0x66, 0x66, 0x66, 0x66, 0x66, 0x66, 0x3C, 0x00}},
+    {'V', {0x66, 0x66, 0x66, 0x66, 0x66, 0x3C, 0x18, 0x00}},
+    {'W', {0x63, 0x63, 0x63, 0x6B, 0x7F, 0x77, 0x63, 0x00}},
+    {'X', {0x66, 0x66, 0x3C, 0x18, 0x3C, 0x66, 0x66, 0x00}},
+    {'Y', {0x66, 0x66, 0x66, 0x3C, 0x18, 0x18, 0x18, 0x00}},
+    {'Z', {0x7E, 0x06, 0x0C, 0x18, 0x30, 0x60, 0x7E, 0x00}},
+    {0x7F, {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF}}  // Full block
+};
 const uint8_t font_char_count = sizeof(font_chars) / sizeof(FontChar);
 
-// Helper function to get font data for a character
-const uint8_t* get_font_data(uint8_t character) {
+// Return pointer to 8-column glyph for ASCII, space if not found
+static const uint8_t* get_font_data(uint8_t ascii) {
     for (uint8_t i = 0; i < font_char_count; i++) {
-        if (font_chars[i].ascii == character) {
-            return font_chars[i].data;
-        }
+        if (font_chars[i].ascii == ascii) return font_chars[i].data;
     }
-    return font_chars[0].data; // Return space if not found
+    return font_chars[0].data; // space
 }
+
+// Map (row, col) to LED index. Adjust if your matrix wiring differs.
+// Here we assume row-major, left-to-right per row: index = row*8 + col.
+
 typedef struct {
-    uint8_t current_col;      // Current column being displayed (0-7)
-    uint8_t char_index;       // Current character in text string
-    uint8_t scroll_pos;       // Current scroll position (0=start, 7=end)
-    float frame_time;         // Time per frame in ms
-    const char* text;         // Pointer to text string
-    color_t color;            // Text color
-    uint32_t start_time;      // Animation start time
+    const char* text;
+    color_t color;
+    uint16_t pixel_offset;   // how many columns have shifted so far
+    uint16_t total_pixels;   // total columns to scroll through
+    bool running;
 } Scroller;
 
-void init_scroller(Scroller* scroller, const char* text, color_t color, float fps) {
-    scroller->current_col = 0;
-    scroller->char_index = 0;
-    scroller->scroll_pos = 0;
-    scroller->frame_time = 1000.0f / (fps * 8); // 8 columns per character
-    scroller->text = text;
-    scroller->color = color;
-    scroller->start_time = 0;
+// Each glyph is 8 columns + 1 column space. Add 8 trailing blanks so message fully exits.
+static uint16_t text_pixel_length(const char* s) {
+    if (!s || !*s) return 8;
+    uint16_t units = 0;
+    for (const char* p = s; *p; ++p) units++;
+    return (uint16_t)(units * 9 + 8);
 }
 
-bool update_scroller(Scroller* scroller) {
-    // Check if we've displayed all characters
-    if (scroller->text[scroller->char_index] == '\0') {
-        return false; // Animation complete
-    }
+// Map row/col to LED index. Adjust if your matrix wiring is different.
+static inline uint16_t led_index(uint8_t row, uint8_t col) {
+    return (uint16_t)row * 8u + col; // row-major, left-to-right
+}
 
-    // Get current character's font data
-    const uint8_t* font_data = get_font_data(scroller->text[scroller->char_index]);
+// Get column bits from the text stream (8-bit column, bit7=top row)
+static uint8_t column_for_text(const char* s, uint16_t col_index) {
+    uint16_t unit = col_index / 9;   // which character
+    uint16_t within = col_index % 9; // 0..7 glyph columns, 8 = spacer
+    uint16_t len = 0;
+    for (const char* p = s; *p; ++p) len++;
+    if (unit >= len) return 0x00;
 
-    // Extract current column
-    uint8_t col_data = font_data[scroller->current_col];
+    const uint8_t* glyph = get_font_data((uint8_t)s[unit]);
+    return (within < 8) ? glyph[within] : 0x00;
+}
 
-    // Display column
+static void init_scroller(Scroller* sc, const char* text, color_t color) {
+    sc->text = text ? text : "";
+    sc->color = color;
+    sc->pixel_offset = 0;
+    sc->total_pixels = text_pixel_length(sc->text);
+    sc->running = true;
+}
+static bool update_scroller(Scroller* sc) {
+    if (!sc->running) return false;
+
     clear();
-    for (uint8_t row = 0; row < 8; row++) {
-        if (col_data & (1 << (7 - scroller->scroll_pos))) {
-            set_color(row * 8 + 7, scroller->color); // Rightmost column
+
+    // Render 8 columns, left-to-right display columns 0..7
+    // Left-to-right scroll: new content enters from the left,
+    // so display col x pulls from text column (pixel_offset + (7 - x))
+    for (uint8_t x = 0; x < 8; ++x) {
+        uint16_t text_col = sc->pixel_offset + (uint16_t)(7 - x);
+        uint8_t col_bits = column_for_text(sc->text, text_col);
+        for (uint8_t row = 0; row < 8; ++row) {
+            if ((col_bits >> (7 - row)) & 0x01) {
+                set_color(led_index(row, x), sc->color);
+            }
         }
     }
+
     WS2812BSimpleSend(LED_PINS, (uint8_t *)led_array, NUM_LEDS * 3);
 
-    // Update scroll position
-    scroller->scroll_pos++;
-    if (scroller->scroll_pos >= 8) {
-        scroller->scroll_pos = 0;
-        scroller->current_col++;
+    // Advance one column per call
+    sc->pixel_offset++;
 
-        // Move to next character when done with current one
-        if (scroller->current_col >= 8) {
-            scroller->current_col = 0;
-            scroller->char_index++;
-        }
+    // Stop after message completely exits the 8x8 area
+    if (sc->pixel_offset >= sc->total_pixels + 8) {
+        sc->running = false;
     }
 
-    return true; // Animation continues
+    return sc->running;
 }
 
-// Example usage:
-void scroll_text(const char* text, color_t color, uint16_t duration_ms) {
-    Scroller scroller;
-    init_scroller(&scroller, text, color, 60.0f); // 60 FPS
+// speed_ms: delay per column shift (e.g., 40 -> ~25 columns/sec)
+void scroll_text(const char* text, color_t color, uint32_t speed_ms) {
+    Scroller sc;
+    init_scroller(&sc, text, color);
 
-
-    while (update_scroller(&scroller)) {
-        Delay_Ms(scroller.frame_time);
-
+    while (update_scroller(&sc)) {
+        Delay_Ms(speed_ms);
     }
 }
+
 /***************************************************************************/
 /***************************************************************************/
 /***************************Scroling name************************************/
@@ -1339,7 +1390,7 @@ int main(void) {
    if(current_user_id > 0) {
          load_name(current_user_id - 1, current_name);
    }
-   scroll_text("HELLO", appleColor, 2000); // Scroll "HELLO" in red for 2 seconds
+   scroll_text("HELLO", appleColor, 120);
     //choosing name
     while(1){
                 choose_your_name();
