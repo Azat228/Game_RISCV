@@ -1,0 +1,13 @@
+eclipse.preferences.version=1
+encoding//User/ch32v003fun/ch32v003fun.c=GBK
+encoding//User/ch32v003fun/ch32v003fun.h=UTF-8
+encoding//User/ch32v003fun/driver.h=GBK
+encoding//User/ch32v003fun/oled_min.c=GBK
+encoding//User/ch32v003fun/ws2812b_simple.h=GBK
+encoding//User/data/Clean_code_func/colors_predefined.h=GBK
+encoding//User/data/Clean_code_func/fonts8x8.h=GBK
+encoding//User/data/colors.h=GBK
+encoding//User/data/fonts.h=GBK
+encoding//User/main.c=GBK
+encoding//obj/InspireRV3.map=GBK
+encoding//obj/Snake_game.map=GBK

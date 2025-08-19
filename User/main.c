@@ -1236,74 +1236,83 @@ bool bricks_remaining(void) {
 /***************************Scroling name************************************/
 /***************************************************************************/
 /***************************************************************************/
-extern const uint8_t font_8x8[256][8];
+const uint8_t font_char_count = sizeof(font_chars) / sizeof(FontChar);
 
+// Helper function to get font data for a character
+const uint8_t* get_font_data(uint8_t character) {
+    for (uint8_t i = 0; i < font_char_count; i++) {
+        if (font_chars[i].ascii == character) {
+            return font_chars[i].data;
+        }
+    }
+    return font_chars[0].data; // Return space if not found
+}
 typedef struct {
-    uint8_t buffer[8][16];  // Double width buffer for scrolling (8 rows, 16 columns)
-    uint16_t cursor;
-    float frameWaitTime;
-} ScrollingText8x8Reveal;
+    uint8_t current_col;      // Current column being displayed (0-7)
+    uint8_t char_index;       // Current character in text string
+    uint8_t scroll_pos;       // Current scroll position (0=start, 7=end)
+    float frame_time;         // Time per frame in ms
+    const char* text;         // Pointer to text string
+    color_t color;            // Text color
+    uint32_t start_time;      // Animation start time
+} Scroller;
 
-void initReveal(ScrollingText8x8Reveal *reveal) {
-    memset(reveal->buffer, 0, sizeof(reveal->buffer));
-    reveal->frameWaitTime = 1000.0 / (60 * 8);  // 60fps * 8 rows
-    reveal->cursor = 0;
+void init_scroller(Scroller* scroller, const char* text, color_t color, float fps) {
+    scroller->current_col = 0;
+    scroller->char_index = 0;
+    scroller->scroll_pos = 0;
+    scroller->frame_time = 1000.0f / (fps * 8); // 8 columns per character
+    scroller->text = text;
+    scroller->color = color;
+    scroller->start_time = 0;
 }
 
-static void byteToBinary(uint8_t byteIn, uint8_t binaryOut[8]) {
-    for (uint8_t n = 0; n < 8; n++) {
-        binaryOut[7 - n] = (byteIn >> n) & 1;
+bool update_scroller(Scroller* scroller) {
+    // Check if we've displayed all characters
+    if (scroller->text[scroller->char_index] == '\0') {
+        return false; // Animation complete
     }
-}
 
-void revealCharacter(ScrollingText8x8Reveal *reveal, uint8_t character, uint32_t duration, color_t color) {
-    uint8_t charMatrix[8][8];
+    // Get current character's font data
+    const uint8_t* font_data = get_font_data(scroller->text[scroller->char_index]);
 
-    // Convert font data to binary matrix
+    // Extract current column
+    uint8_t col_data = font_data[scroller->current_col];
+
+    // Display column
+    clear();
     for (uint8_t row = 0; row < 8; row++) {
-        uint8_t binary[8];
-        byteToBinary(font_8x8[character][row], binary);
-        for (uint8_t col = 0; col < 8; col++) {
-            charMatrix[row][col] = binary[col];
+        if (col_data & (1 << (7 - scroller->scroll_pos))) {
+            set_color(row * 8 + 7, scroller->color); // Rightmost column
+        }
+    }
+    WS2812BSimpleSend(LED_PINS, (uint8_t *)led_array, NUM_LEDS * 3);
+
+    // Update scroll position
+    scroller->scroll_pos++;
+    if (scroller->scroll_pos >= 8) {
+        scroller->scroll_pos = 0;
+        scroller->current_col++;
+
+        // Move to next character when done with current one
+        if (scroller->current_col >= 8) {
+            scroller->current_col = 0;
+            scroller->char_index++;
         }
     }
 
-    // Add character to buffer (right side)
-    uint8_t bufferIndex = (reveal->cursor < 8) ? 1 : 0;
-    for (uint8_t row = 0; row < 8; row++) {
-        for (uint8_t col = 0; col < 8; col++) {
-            reveal->buffer[row][col + (bufferIndex * 8)] = charMatrix[row][col];
-        }
-    }
-
-    // Scroll animation
-    for (uint8_t step = 0; step < 8; step++) {
-        uint32_t currentDuration = 0;
-        while (currentDuration < duration) {
-            clear();
-
-            // Display current window
-            for (uint8_t row = 0; row < 8; row++) {
-                for (uint8_t col = 0; col < 8; col++) {
-                    uint8_t bufCol = (reveal->cursor + col) % 16;
-                    if (reveal->buffer[row][bufCol]) {
-                        set_color(row * 8 + col, color);
-                    }
-                }
-            }
-
-            WS2812BSimpleSend(LED_PINS, (uint8_t *)led_array, NUM_LEDS * 3);
-            Delay_Ms(reveal->frameWaitTime);
-            currentDuration += reveal->frameWaitTime;
-        }
-
-        reveal->cursor = (reveal->cursor + 1) % 16;
-    }
+    return true; // Animation continues
 }
 
-void revealText(ScrollingText8x8Reveal *reveal, const char *text, uint32_t speed, color_t color) {
-    for (uint32_t i = 0; text[i] != '\0'; i++) {
-        revealCharacter(reveal, text[i], speed, color);
+// Example usage:
+void scroll_text(const char* text, color_t color, uint16_t duration_ms) {
+    Scroller scroller;
+    init_scroller(&scroller, text, color, 60.0f); // 60 FPS
+
+
+    while (update_scroller(&scroller)) {
+        Delay_Ms(scroller.frame_time);
+
     }
 }
 /***************************************************************************/
@@ -1330,11 +1339,7 @@ int main(void) {
    if(current_user_id > 0) {
          load_name(current_user_id - 1, current_name);
    }
-   ScrollingText8x8Reveal scroller;
-   initReveal(&scroller);
-
-   // Display scrolling text
-   revealText(&scroller, "HELLO", 100, scoreColor);  // 100ms per character
+   scroll_text("HELLO", appleColor, 2000); // Scroll "HELLO" in red for 2 seconds
     //choosing name
     while(1){
                 choose_your_name();
