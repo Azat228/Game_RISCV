@@ -11,7 +11,7 @@
 #include "./data/music.h"
 #include "./ch32v003fun/ws2812b_simple.h"
 #include "data/Clean_code_func/colors_predefined.h"
-//#include "data/Clean_code_func/fonts8x8.h"
+#include "data/Clean_code_func/fonts8x8.h"
 #define LED_PINS GPIOA, 2
 // Game constants
 #define INITIAL_SPEED 500  // ms between moves
@@ -51,32 +51,6 @@
 #define app_icon_page_no (0 * sizeof_paint_data_aspage) //no = 0
 #define app_icon_page_no_max (8 * sizeof_paint_data_aspage) //size = 24
 #define delay 1000
-#define LETTER_A  0
-#define LETTER_B  1
-#define LETTER_C  2
-#define LETTER_D  3
-#define LETTER_E  4
-#define LETTER_F  5
-#define LETTER_G  6
-#define LETTER_H  7
-#define LETTER_I  8
-#define LETTER_J  9
-#define LETTER_K  10
-#define LETTER_L  11
-#define LETTER_M  12
-#define LETTER_N  13
-#define LETTER_O  14
-#define LETTER_P  15
-#define LETTER_Q  16
-#define LETTER_R  17
-#define LETTER_S  18
-#define LETTER_T  19
-#define LETTER_U  20
-#define LETTER_V  21
-#define LETTER_W  22
-#define LETTER_X  23
-#define LETTER_Y  24
-#define LETTER_Z  25
 // initialize file storage structure for 32kb/512pages
 // first 8 pages are used for status
 //Letters define
@@ -92,14 +66,17 @@ typedef struct snakePartDir {
     char part;      // 'h'=head, 'b'=body, 't'=tail, 'a'=apple, '0'=empty
     int8_t direction; // movement direction
 } snakePartDir;
+/*
 typedef struct cell_t{
     char part;
 } cell_t;
+
 cell_t gameBoard_1[GRID_SIZE * GRID_SIZE];
 typedef struct ball_t{
     int8_t x, y;
     int8_t dx, dy;
 } ball_t;
+*/
 // Game state
 snakePartDir gameBoard[GRID_SIZE * GRID_SIZE];
 int8_t snakeHead, snakeTail;
@@ -110,13 +87,15 @@ bool gameOver;
 bool game_regime = false;
 uint16_t speedCounter = 0;
 uint8_t Identifier = 0;// the index of the name choosed
-//variables for bounce game
+/*//variables for bounce game
 ball_t ball;
 int8_t paddleX; // Paddle leftmost position
 uint8_t score_1;
 uint8_t scoreHistory_1[MAX_SCORES] = {0};
 uint8_t currentScoreIndex_1 = 0;
 bool gameOver_1 = false;
+*/
+//variable for name savings
 uint8_t current_user_id = 0;  // Tracks which user is currently active
 char current_name[NAME_LENGTH] = {0};
 char* new_name;
@@ -139,7 +118,6 @@ uint8_t is_storage_initialized(void);
 // Name handling functions
 void display_letter(uint8_t letter_idx, color_t color, int delay_ms);
 void display_full_message(const uint8_t* letters, uint8_t count, color_t color, uint16_t delay_ms);
-void choose_your_name(void);
 char* create_name(void);
 void save_name(uint8_t user_id, const char* name);
 void load_name(uint8_t user_id, char* buffer);
@@ -164,6 +142,21 @@ bool check_collision(int8_t newHeadPos);
 void move_snake(int8_t newDirection, bool ateApple);
 void show_current_score(void);
 void show_score_history(void);
+//scroling function prototypes
+typedef struct {
+    const char* text;
+    color_t color;
+    uint16_t pixel_offset;   // how many columns have shifted so far
+    uint16_t total_pixels;   // total columns to scroll through
+    bool running;
+} Scroller;
+static const uint8_t* get_font_data(uint8_t ascii);
+static uint16_t text_pixel_length(const char* s);
+static inline uint16_t led_index(uint8_t row, uint8_t col);
+static uint8_t column_for_text(const char* s, uint16_t col_index);
+static void init_scroller(Scroller* sc, const char* text, color_t color);
+static bool update_scroller(Scroller* sc);
+void scroll_text(const char* text, color_t color, uint32_t speed_ms);
 /*
 // Breakout game functions
 void clear_board_1(void);
@@ -359,6 +352,7 @@ void display_letter(uint8_t letter_idx, color_t color, int delay_ms) {
     Delay_Ms(delay_ms);
     clear();
 }
+/*
 void display_full_message(const uint8_t* letters, uint8_t count, color_t color, uint16_t delay_ms) {
     for (uint8_t i = 0; i < count; i++) {
         Letter_draw(Letter_List[letters[i]], letters_color[letters[i]], 0);
@@ -367,25 +361,22 @@ void display_full_message(const uint8_t* letters, uint8_t count, color_t color, 
         clear();
     }
 }
-void choose_your_name(void) {
-    // Define "CHOOSE YOUR NAME" letter sequence
-    scroll_text("YOUR NAME", appleColor, 120);
-}
+*/
+
+
 char* create_name(void) {
     int i = 0;
     new_name = malloc(NAME_LENGTH+1);
     if (!new_name) return NULL;
 
     int j = 0;
-    uint8_t letter_list[NAME_LENGTH+1] = {0};
 
     while(j < NAME_LENGTH) {
-            display_letter(i, letters_color[i], 600);
+            display_letter(i, letter_color, 600);
 
             if(JOY_5_pressed()) {
                 while(JOY_5_pressed()) Delay_Ms(20);
                 new_name[j] = 'A' + i;  // Store the actual letter
-                letter_list[j] = i;     // Store the letter index for display
                 j++;
                 i = 0;
                 continue;
@@ -420,17 +411,13 @@ char* create_name(void) {
         current_user_id = 1;
         save_id(current_user_id);
     }
-
-    display_full_message(letter_list, NAME_LENGTH, scoreColor, 500);
+    scroll_text(new_name,scroll_name,200);
     return new_name;
 }
 void available_names(uint8_t num_name) {
 char *name_to_display =  malloc(NAME_LENGTH+1);
             load_name(num_name, name_to_display);
-            for(uint8_t i = 0;i<4;i++){
-                uint8_t indx = name_to_display[i] - 'A';
-                display_letter(indx, letters_color[indx], 500);
-            }
+            scroll_text(name_to_display,scoreColor,200);
 }
 /***********************************************/
 /***********************************************/
@@ -671,12 +658,10 @@ void show_name_and_highest_score(void) {
     Delay_Ms(500);
 
     // Display player name
-    for (int i = 0; i < 3; i++) {
-        uint8_t plind = names[best_player][i] - 'A'; // Convert char to letter index
-        display_letter(plind, letters_color[plind], 500);
+       scroll_text(names[best_player], scroll_name, 200);
         Delay_Ms(500);
         clear();
-    }
+
 
     // Display highest score
     const uint8_t tenth_digit = global_high_score / 10;
@@ -1223,45 +1208,7 @@ bool bricks_remaining(void) {
 /***************************Scroling name************************************/
 /***************************************************************************/
 /***************************************************************************/
-typedef struct {
-    uint8_t ascii;   // Character code
-    uint8_t data[8]; // 8 columns, MSB is top row (bit7=top .. bit0=bottom)
-} FontChar;
 
-// Font (8x8 columns). One column of space (0x00) between letters implied in scroller.
-const FontChar font_chars[] = {
-    {' ', {0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00}},
-    {'A', {0x3E,0x45,0x45,0x45,0x3E,0x00,0x00,0x00}}, // Rotated 'A'
-    {'B', {0x7F,0x49,0x49,0x49,0x36,0x00,0x00,0x00}}, // Rotated 'B'
-    {'C', {0x3E,0x41,0x41,0x41,0x22,0x00,0x00,0x00}}, // Rotated 'C'
-    {'D', {0x7F,0x41,0x41,0x22,0x1C,0x00,0x00,0x00}}, // Rotated 'D'
-    {'E', {0x7F,0x49,0x49,0x49,0x41,0x00,0x00,0x00}}, // Rotated 'E'
-    {'F', {0x7F,0x48,0x48,0x48,0x40,0x00,0x00,0x00}}, // Rotated 'F'
-    {'G', {0x3E,0x41,0x49,0x49,0x2E,0x00,0x00,0x00}}, // Rotated 'G'
-    {'H', {0x7F,0x08,0x08,0x08,0x7F,0x00,0x00,0x00}}, // Rotated 'H'
-    {'I', {0x41,0x7F,0x41,0x00,0x00,0x00,0x00,0x00}}, // Rotated 'I'
-    {'J', {0x02,0x01,0x01,0x7E,0x00,0x00,0x00,0x00}}, // Rotated 'J'
-    {'K', {0x7F,0x08,0x14,0x22,0x41,0x00,0x00,0x00}}, // Rotated 'K'
-    {'L', {0x7F,0x01,0x01,0x01,0x01,0x00,0x00,0x00}}, // Rotated 'L'
-    {'M', {0x7F,0x20,0x10,0x20,0x7F,0x00,0x00,0x00}}, // Rotated 'M'
-    {'N', {0x7F,0x10,0x08,0x04,0x7F,0x00,0x00,0x00}}, // Rotated 'N'
-    {'O', {0x3E,0x41,0x41,0x41,0x3E,0x00,0x00,0x00}}, // Rotated 'O'
-    {'P', {0x7F,0x44,0x44,0x44,0x38,0x00,0x00,0x00}}, // Rotated 'P'
-    {'Q', {0x3E,0x41,0x45,0x42,0x3D,0x00,0x00,0x00}}, // Rotated 'Q'
-    {'R', {0x7F,0x44,0x46,0x45,0x38,0x00,0x00,0x00}}, // Rotated 'R'
-    {'S', {0x32,0x49,0x49,0x49,0x26,0x00,0x00,0x00}}, // Rotated 'S'
-    {'T', {0x40,0x40,0x7F,0x40,0x40,0x00,0x00,0x00}}, // Rotated 'T'
-    {'U', {0x7E,0x01,0x01,0x01,0x7E,0x00,0x00,0x00}}, // Rotated 'U'
-    {'V', {0x7C,0x02,0x01,0x02,0x7C,0x00,0x00,0x00}}, // Rotated 'V'
-    {'W', {0x7F,0x02,0x04,0x02,0x7F,0x00,0x00,0x00}}, // Rotated 'W'
-    {'X', {0x63,0x14,0x08,0x14,0x63,0x00,0x00,0x00}}, // Rotated 'X'
-    {'Y', {0x60,0x10,0x0F,0x10,0x60,0x00,0x00,0x00}}, // Rotated 'Y'
-    {'Z', {0x43,0x45,0x49,0x51,0x61,0x00,0x00,0x00}}, // Rotated 'Z'
-    {'0', {0x3E,0x45,0x49,0x51,0x3E,0x00,0x00,0x00}}, // Rotated '0'
-    {'1', {0x21,0x7F,0x01,0x00,0x00,0x00,0x00,0x00}}, // Rotated '1'
-    // Add more characters as needed...
-    {0x7F,{0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF}} // Full block
-};
 const uint8_t font_char_count = sizeof(font_chars) / sizeof(FontChar);
 
 // Return pointer to 8-column glyph for ASCII, space if not found
@@ -1274,15 +1221,6 @@ static const uint8_t* get_font_data(uint8_t ascii) {
 
 // Map (row, col) to LED index. Adjust if your matrix wiring differs.
 // Here we assume row-major, left-to-right per row: index = row*8 + col.
-
-typedef struct {
-    const char* text;
-    color_t color;
-    uint16_t pixel_offset;   // how many columns have shifted so far
-    uint16_t total_pixels;   // total columns to scroll through
-    bool running;
-} Scroller;
-
 // Each glyph is 8 columns + 1 column space. Add 8 trailing blanks so message fully exits.
 static uint16_t text_pixel_length(const char* s) {
     if (!s || !*s) return 8;
@@ -1383,7 +1321,7 @@ int main(void) {
 
     //choosing name
     while(1){
-                choose_your_name();
+        scroll_text("YOUR NAME", appleColor, 120);
                 Delay_Ms(1000);
                 while(1){
                         if(JOY_5_pressed()){
@@ -1412,7 +1350,7 @@ int main(void) {
 
                 }
                         clear();
-                        Delay_Ms(1000);
+                        Delay_Ms(100);
                         break;
 
             }
@@ -1421,19 +1359,17 @@ int main(void) {
         char player_name[NAME_LENGTH+1];
         get_current_user_name(player_name);
         printf("Current player: %s\n", player_name);
-        if(JOY_3_pressed()){// we start snake game
-//      load_scores();
         game_init();
         display();
-        load_scores(); // Load saved scores at start of the game
-        Delay_Ms(1000); // Initial delay
+        load_scores();
+        Delay_Ms(500); // Initial delay
 
         int8_t currentDirection = -1; // Start moving left
         gameOver = false;
 
         while(!gameOver) {
 
-            if (JOY_1_pressed()) { // changing hame mode
+            if (JOY_1_pressed()) { // changing game mode
                           while(JOY_1_pressed()) Delay_Ms(20);
                           game_regime = !game_regime;
                           Delay_Ms(100);
@@ -1519,7 +1455,7 @@ int main(void) {
                 timeout -= 10;
             }
         }
-        }
+
      /*   if(JOY_9_pressed()){//breakout_game init
              while (JOY_9_pressed()) Delay_Ms(10);
                          breakout_init();
