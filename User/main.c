@@ -5,7 +5,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include "./ch32v003fun/ch32v003_i2c.h"
-#include "./data/colors.h"
 #include "./ch32v003fun/driver.h"
 #include "./data/fonts.h"
 #include "./data/music.h"
@@ -18,14 +17,8 @@
 #define GRID_SIZE 8        // 8x8 grid
 #define MAX_SCORES 10      // Number of high scores to keep
 #define SCORE_SIZE 2 // Each score uses 2 bytes (index + value)
-//constanst for brekout game
-#define PADDLE_WIDTH 2
-#define BRICK_ROWS 2
-#define IDX(x, y) ((y) * GRID_SIZE + (x))
 //Storage defines
 #define EEPROM_ADDR 0x52 // obtained from i2c_scan(), before shifting by 1 bit
-#define page_size 64    // range of byte that stores status of page[x]
-#define opcode_size 28    // range of byte that stores opcodes
 #define init_status_addr_begin 0
 #define init_status_addr_end 7
 #define init_status_reg_size (init_status_addr_end - init_status_addr_begin + 1) // size  = 8
@@ -34,34 +27,18 @@
 #define page_status_addr_begin 8 // page 8
 #define page_status_addr_end 511 // page 511
 #define page_status_reg_size (page_status_addr_end - page_status_addr_begin + 1) // page size = 504
-#define paint_addr_begin 8 //paint page start at 8
-#define sizeof_paint_data (3 * NUM_LEDS) //paint page size = 192
-#define sizeof_paint_data_aspage (sizeof_paint_data / page_size) // no. of paint page = 3
-#define paint_addr_end (paint_addr_begin + 8 * sizeof_paint_data_aspage - 1) // paint page end at addr = 31
-#define paint_page_no (0 * sizeof_paint_data_aspage) //no = 0
-#define paint_page_no_max (8 * sizeof_paint_data_aspage) //size = 24
-#define num_paint_saves (paint_page_no_max / sizeof_paint_data_aspage) //size = 8
-#define opcode_addr_begin (paint_addr_end + paint_page_no_max - 1) //addr = 54
-#define sizeof_opcode_data 64 //size = 64
-#define sizeof_opcode_data_aspage (sizeof_opcode_data / page_size) // size = 1
-#define opcode_addr_end (opcode_addr_begin + 8 * sizeof_paint_data_aspage - 1) //addr = 61
-#define opcode_page_no (0 * sizeof_opcode_data_aspage) //no = 8
-#define opcode_page_no_max (8 * sizeof_opcode_data_aspage) //size = 8
-#define matrix_hori 16
-#define app_icon_page_no (0 * sizeof_paint_data_aspage) //no = 0
-#define app_icon_page_no_max (8 * sizeof_paint_data_aspage) //size = 24
 #define delay 1000
 // initialize file storage structure for 32kb/512pages
 // first 8 pages are used for status
 //Letters define
 #define NAME_LENGTH 3
-#define NAME_START_ADDR 0x0100  // Starting address for name storage
+#define NAME_START_ADDR 0x0200  // Starting address for name storage
 #define MAX_USERS 3
 #define SCORES_PER_USER MAX_SCORES
 #define SCORE_RECORD_SIZE 2  // Each score record is 2 bytes (index + value)
-#define USER_SCORE_SPACE (SCORES_PER_USER * SCORE_RECORD_SIZE)
+#define USER_SCORE_SPACE (SCORES_PER_USER * SCORE_RECORD_SIZE)+20
 #define SCORE_START_ADDR 0x0008
-#define USER_ID_START_ADDR 0x0200
+#define USER_ID_START_ADDR 0x0300
 typedef struct snakePartDir {
     char part;      // 'h'=head, 'b'=body, 't'=tail, 'a'=apple, '0'=empty
     int8_t direction; // movement direction
@@ -400,7 +377,7 @@ void save_currentScore_EEPROM(uint8_t score) {
         uint8_t stored_score;
 
         // Read existing score
-        i2c_read(EEPROM_ADDR, addr + 1, I2C_REGADDR_2B, &stored_score, 1);
+        i2c_read(EEPROM_ADDR, addr+1, I2C_REGADDR_2B, &stored_score, 1);
 
         if (stored_score == 0 && !found_empty) {
             slot = i;
@@ -424,16 +401,118 @@ void save_currentScore_EEPROM(uint8_t score) {
               current_user_id, score, slot, addr);
     }
 }
+
+
+// Load all names from EEPROM
+void load_all_names(char names[MAX_USERS][NAME_LENGTH]) {
+    for (uint8_t i = 0; i < MAX_USERS; i++) {
+        load_name(i, names[i]);
+    }
+}
+
+void load_scores(void) {
+    // Clear current score history
+    memset(scoreHistory, 0, sizeof(scoreHistory));
+    currentScoreIndex = 0;
+
+    // Calculate base address for this user's scores
+    uint16_t user_base_addr = SCORE_START_ADDR + (current_user_id * USER_SCORE_SPACE);
+
+    // Read all score slots for this user
+    for (uint8_t i = 0; i < MAX_SCORES; i++) {
+        uint16_t addr = user_base_addr + (i * SCORE_RECORD_SIZE);
+        uint8_t data[SCORE_RECORD_SIZE];
+
+        i2c_read(EEPROM_ADDR, addr, I2C_REGADDR_2B, data, SCORE_RECORD_SIZE);
+
+        // Validate the data (index should match slot)
+        if (data[0] == i) {
+            scoreHistory[i] = data[1];
+            currentScoreIndex++;
+        }
+    }
+
+    printf("Loaded %d scores for user %d\n", currentScoreIndex, current_user_id);
+}
+void reveal_all_scores(void) {
+    // Load scores from EEPROM first to ensure we have current data
+    load_scores();
+
+    // Clear the display
+    clear();
+    WS2812BSimpleSend(LED_PINS, (uint8_t *)led_array, NUM_LEDS * 3);
+    Delay_Ms(500);
+
+    // Display each score with its position
+    for (uint8_t i = 0; i < MAX_SCORES;i++) {
+        if (scoreHistory[i] == 0 && i!=0) continue; // Skip empty slots
+
+        // First show which score this is (1-10)
+        clear();
+        set_color(63, scoreColor); // Indicator LED for score position
+
+        // Display position number (1-10) on right side
+        if (i < 9) {
+            // Positions 1-9 (display single digit)
+            font_draw(font_list[i+1], scoreColor, 0); // +1 because positions start at 1
+            WS2812BSimpleSend(LED_PINS, (uint8_t *)led_array, NUM_LEDS * 3);
+            Delay_Ms(1000);
+        } else {
+            // Position 10 (special case)
+            font_draw(font_list[1], scoreColor, 4); // '1'
+            font_draw(font_list[0], scoreColor, 0);  // '0'
+            WS2812BSimpleSend(LED_PINS, (uint8_t *)led_array, NUM_LEDS * 3);
+            Delay_Ms(1000);
+        }
+
+
+        // Then show the actual score value
+        clear();
+        const uint8_t tenth_digit = scoreHistory[i] / 10;
+        const uint8_t unit_digit = scoreHistory[i] % 10;
+
+        // Display score value
+        if (tenth_digit > 0) {
+            font_draw(font_list[tenth_digit], scoreColor, 4); // Tens place
+        }
+        font_draw(font_list[unit_digit], scoreColor, 0);      // Units place
+        WS2812BSimpleSend(LED_PINS, (uint8_t *)led_array, NUM_LEDS * 3);
+        Delay_Ms(1500);
+
+        // Brief pause between scores
+        clear();
+        WS2812BSimpleSend(LED_PINS, (uint8_t *)led_array, NUM_LEDS * 3);
+        Delay_Ms(300);
+
+    }
+
+    // Final clear
+    clear();
+    WS2812BSimpleSend(LED_PINS, (uint8_t *)led_array, NUM_LEDS * 3);
+}
+// this is shit code function that works, I will think how to rewrite
+
+/***********************************/
+/***********************************/
+/*****EEPROM Scores Handling********/
+/***********************************/
+/***********************************/
+
+/***********************************/
+/***********************************/
+/*****EEPROM Names Handling********/
+/***********************************/
+/***********************************/
 void save_id(uint8_t user_id){
     uint16_t addr = USER_ID_START_ADDR;
-    i2c_write(EEPROM_ADDR, addr, I2C_REGADDR_2B, &user_id, 1);
+    i2c_write(EEPROM_ADDR, addr, I2C_REGADDR_1B, &user_id, 1);
     Delay_Ms(3);
     printf("User count %d saved\n", user_id);
 }
 uint8_t load_id (void){
     uint16_t addr = USER_ID_START_ADDR;
     uint8_t user_count = 0;
-    i2c_read(EEPROM_ADDR, addr, I2C_REGADDR_2B, &user_count, 1);
+    i2c_read(EEPROM_ADDR, addr, I2C_REGADDR_1B, &user_count, 1);
     printf("Loaded user count: %d\n", user_count);
     return user_count;
 }
@@ -483,91 +562,6 @@ void get_current_user_name(char* buffer) {
     }
     load_name(current_user_id, buffer);  // Load last saved user
 }
-
-// Load all names from EEPROM
-void load_all_names(char names[MAX_USERS][NAME_LENGTH]) {
-    for (uint8_t i = 0; i < MAX_USERS; i++) {
-        load_name(i, names[i]);
-    }
-}
-
-void load_scores(void) {
-    // Clear current score history
-    memset(scoreHistory, 0, sizeof(scoreHistory));
-    currentScoreIndex = 0;
-
-    // Calculate base address for this user's scores
-    uint16_t user_base_addr = SCORE_START_ADDR + (current_user_id * USER_SCORE_SPACE);
-
-    // Read all score slots for this user
-    for (uint8_t i = 0; i < MAX_SCORES; i++) {
-        uint16_t addr = user_base_addr + (i * SCORE_RECORD_SIZE);
-        uint8_t data[SCORE_RECORD_SIZE];
-
-        i2c_read(EEPROM_ADDR, addr, I2C_REGADDR_2B, data, SCORE_RECORD_SIZE);
-
-        // Validate the data (index should match slot)
-        if (data[0] == i && data[1] != 0) {
-            scoreHistory[i] = data[1];
-            currentScoreIndex++;
-        }
-    }
-
-    printf("Loaded %d scores for user %d\n", currentScoreIndex, current_user_id);
-}
-void reveal_all_scores(void) {
-    // Load scores from EEPROM first to ensure we have current data
-    load_scores();
-
-    // Clear the display
-    clear();
-    WS2812BSimpleSend(LED_PINS, (uint8_t *)led_array, NUM_LEDS * 3);
-    Delay_Ms(500);
-
-    // Display each score with its position
-    for (uint8_t i = 0; i < MAX_SCORES; i++) {
-        if (scoreHistory[i] == 0) continue; // Skip empty slots
-
-        // First show which score this is (1-10)
-        clear();
-        set_color(63, scoreColor); // Indicator LED for score position
-
-        // Display position number (1-10) on right side
-        if (i < 9) {
-            // Positions 1-9 (display single digit)
-            font_draw(font_list[i+1], scoreColor, 0); // +1 because positions start at 1
-        } else {
-            // Position 10 (special case)
-            font_draw(font_list[1], scoreColor, 4); // '1'
-            font_draw(font_list[0], scoreColor, 0);  // '0'
-        }
-        WS2812BSimpleSend(LED_PINS, (uint8_t *)led_array, NUM_LEDS * 3);
-        Delay_Ms(1000);
-
-        // Then show the actual score value
-        clear();
-        const uint8_t tenth_digit = scoreHistory[i] / 10;
-        const uint8_t unit_digit = scoreHistory[i] % 10;
-
-        // Display score value
-        if (tenth_digit > 0) {
-            font_draw(font_list[tenth_digit], scoreColor, 4); // Tens place
-        }
-        font_draw(font_list[unit_digit], scoreColor, 0);      // Units place
-        WS2812BSimpleSend(LED_PINS, (uint8_t *)led_array, NUM_LEDS * 3);
-        Delay_Ms(1500);
-
-        // Brief pause between scores
-        clear();
-        WS2812BSimpleSend(LED_PINS, (uint8_t *)led_array, NUM_LEDS * 3);
-        Delay_Ms(300);
-    }
-
-    // Final clear
-    clear();
-    WS2812BSimpleSend(LED_PINS, (uint8_t *)led_array, NUM_LEDS * 3);
-}
-// this is shit code function that works, I will think how to rewrite
 void show_name_and_highest_score(void) {
     char names[MAX_USERS][NAME_LENGTH];
     uint8_t highest_scores[MAX_USERS] = {0};
@@ -584,7 +578,7 @@ void show_name_and_highest_score(void) {
         load_scores();
 
         // Find this player's highest score
-        for (uint8_t i = 0; i < MAX_SCORES; i++) {
+        for (uint8_t i = 1; i < MAX_SCORES; i++) {
             if (scoreHistory[i] > highest_scores[player]) {
                 highest_scores[player] = scoreHistory[i];
             }
@@ -627,9 +621,17 @@ void show_name_and_highest_score(void) {
     clear();
     WS2812BSimpleSend(LED_PINS, (uint8_t *)led_array, NUM_LEDS * 3);
 }
+
+
+
+
+
+
+
+
 /***********************************/
 /***********************************/
-/*****EEPROM Scores Handling********/
+/*****EEPROM Names Handling********/
 /***********************************/
 /***********************************/
 
@@ -801,6 +803,7 @@ int main(void) {
                         if(JOY_5_pressed()){
                             while(JOY_5_pressed()) Delay_Ms(20);
                             create_name();
+                            save_name(Identifier, new_name);
                             break;
                         }
                         if(JOY_1_pressed()){
@@ -835,7 +838,6 @@ int main(void) {
         printf("Current player: %s\n", player_name);
         game_init();
         display();
-        load_scores();
         Delay_Ms(500); // Initial delay
 
         int8_t currentDirection = -1; // Start moving left
@@ -886,12 +888,11 @@ int main(void) {
             // Save the current score
             if(currentScoreIndex < MAX_SCORES) {
                 scoreHistory[currentScoreIndex] = score;
-                currentScoreIndex++;
+
             }
 
             // Save to EEPROM
             save_currentScore_EEPROM(score);
-            save_name(Identifier, new_name);
 
             // Show current score with flashing
             for(uint8_t i = 0; i < 3; i++) {
@@ -905,6 +906,7 @@ int main(void) {
             // Post-game menu
             uint32_t timeout = 10000; // 10 second timeout
             while(timeout > 0) {
+                load_scores();
                 if(JOY_3_pressed()) {
                     while(JOY_3_pressed()) Delay_Ms(10);
                     reset_all_scores();
@@ -917,6 +919,7 @@ int main(void) {
                 }
                 else if(JOY_5_pressed()) {
                     while(JOY_5_pressed()) Delay_Ms(10);
+                    currentScoreIndex++;
                     break; // Restart game
                 }
                 else if (JOY_9_pressed()) {
@@ -928,6 +931,7 @@ int main(void) {
                 Delay_Ms(10);
                 timeout -= 10;
             }
+            currentScoreIndex++;
         }
     }
     return 0;
