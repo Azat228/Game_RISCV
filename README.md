@@ -18,7 +18,6 @@ Create your names, and then choose any names you like
 ### Game Selection (At Startup)
 Choose the game you like
 - *Button 3*: Snake Game
-- *Button 9*: Breakout Game
 
 
 ### Score Management
@@ -49,13 +48,22 @@ Choose the game you like
 - WHCLink-E programmer
 - Inspire RISC-V computer
 
-### Setup
+### Setup(Snake Game)
 1. Install MounRiver Studio
 2. Open Snake_game.wvproj project
 3. Click *Rebuild* to compile
 4. Connect the Inspire computer via WHCLink-E
 5. Download into the Inspire computer
 6. Launch the game!
+
+### Setup(Snake Game)
+1. Install MounRiver Studio
+2. unzip Brekout_game.zip in another folder, not in the same folder as snake game!, it is very important
+3. open Breakout_game.wvproj project
+4. Click *Rebuild* to compile
+5. Connect the Inspire computer via WHCLink-E
+6. Download into the Inspire computer
+7. Launch the game!
 
 ## Gameplay(Snake)
 - Guide the snake to eat food and grow
@@ -68,7 +76,7 @@ Choose the game you like
 - Previous scores are saved between sessions
 
 ## Contributors
-- *A. Tong* - drivers and helpful functions 
+- *A. Tong* - drivers and low level functions  
 
 ## Troubleshooting
 - Ensure proper display connections
