@@ -7,7 +7,6 @@
 #include "./ch32v003fun/ch32v003_i2c.h"
 #include "./ch32v003fun/driver.h"
 #include "./data/fonts.h"
-#include "./data/music.h"
 #include "./ch32v003fun/ws2812b_simple.h"
 #include "data/Clean_code_func/colors_predefined.h"
 #include "data/Clean_code_func/fonts8x8.h"
@@ -61,8 +60,6 @@ uint8_t is_storage_initialized(void);   // check if already initialized data, ak
 void init_storage(void);
 void reset_storage(void);
 uint8_t is_storage_initialized(void);
-
-
 // Name handling functions
 void display_letter(uint8_t letter_idx, color_t color, int delay_ms);
 char* create_name(void);
@@ -104,6 +101,11 @@ static uint8_t column_for_text(const char* s, uint16_t col_index);
 static void init_scroller(Scroller* sc, const char* text, color_t color);
 static bool update_scroller(Scroller* sc);
 void scroll_text(const char* text, color_t color, uint32_t speed_ms);
+//main function prototypes
+void system_start_prog(void);u
+void choosing_name_loop(void);
+void inside_game(uint8_t currentDirection);
+void post_game_menu(void);
 /****************/
 /****************/
 /*****SNAKE Game********/
@@ -342,7 +344,7 @@ char* create_name(void) {
 void available_names(uint8_t num_name) {
 char *name_to_display =  malloc(NAME_LENGTH+1);
             load_name(num_name, name_to_display);
-            scroll_text(name_to_display,scoreColor,200);
+            scroll_text(name_to_display,scroll_name,200);
 }
 /***********************************************/
 /***********************************************/
@@ -767,8 +769,13 @@ void scroll_text(const char* text, color_t color, uint32_t speed_ms) {
 /***************************Scroling name************************************/
 /***************************************************************************/
 /***************************************************************************/
-//Sorry for shit code:(, especially part with EEPROM
-int main(void) {
+
+/***************************************************************************/
+/***************************************************************************/
+/***************************Main functions************************************/
+/***************************************************************************/
+/***************************************************************************/
+void system_start_prog(void){// init all states
     // Initialize hardware
     SystemInit();
     ADC_init();
@@ -776,42 +783,124 @@ int main(void) {
     printf("Lets start debug\n");
     i2c_init();
     init_storage();
-    JOY_sound(1000, 100);
-    //choosing name
+}
+void choosing_name_loop(void){
     while(1){
-        scroll_text("YOUR NAME", appleColor, 120);
-                Delay_Ms(1000);
-                while(1){
-                        if(JOY_5_pressed()){
-                            while(JOY_5_pressed()) Delay_Ms(20);
-                            create_name();
+           scroll_text("NAME", appleColor, 120);
+
+                    Delay_Ms(100);
+                    while(1){
+                            if(JOY_5_pressed()){
+                                while(JOY_5_pressed()) Delay_Ms(20);
+                                create_name();
+                                return;
+                            }
+                            if(JOY_1_pressed()){
+                                                      while(JOY_1_pressed()) Delay_Ms(20);
+                                                      current_user_id = 0;
+                                                      available_names(current_user_id);
+                                                      return;
+                            }
+                            if(JOY_4_pressed()){
+                                                      while(JOY_4_pressed()) Delay_Ms(20);
+                                                      current_user_id = 1;
+                                                      available_names(current_user_id);
+                                                      return;
+                            }
+                            if(JOY_7_pressed()){
+                                                      while(JOY_7_pressed()) Delay_Ms(20);
+                                                      current_user_id = 2;
+                                                      available_names(current_user_id);
+                                                      return;
+                            }
+
+                    }
+                            clear();
+                            Delay_Ms(100);
                             break;
-                        }
-                        if(JOY_1_pressed()){
-                                                  while(JOY_1_pressed()) Delay_Ms(20);
-                                                  current_user_id = 0;
-                                                  available_names(current_user_id);
-                                                  break;
-                        }
-                        if(JOY_4_pressed()){
-                                                  while(JOY_4_pressed()) Delay_Ms(20);
-                                                  current_user_id = 1;
-                                                  available_names(current_user_id);
-                                                  break;
-                        }
-                        if(JOY_7_pressed()){
-                                                  while(JOY_7_pressed()) Delay_Ms(20);
-                                                  current_user_id = 2;
-                                                  available_names(current_user_id);
-                                                  break;
-                        }
 
                 }
-                        clear();
-                        Delay_Ms(100);
-                        break;
+}
+void inside_game(uint8_t currentDirection){
+    while(!gameOver) {
 
-            }
+        if (JOY_1_pressed()) { // changing game mode
+                      while(JOY_1_pressed()) Delay_Ms(20);
+                      game_regime = !game_regime;
+                      Delay_Ms(100);
+
+                  }
+        // Get input
+        currentDirection = get_new_direction(currentDirection);
+        speedCounter++;
+        // Calculate new head position
+        int8_t newHeadPos = snakeHead + currentDirection;
+
+        // Check for collisions
+        if (check_collision(newHeadPos)) {
+            gameOver = true;
+            break;
+        }
+
+        // Check if apple was eaten
+        bool ateApple = check_apple(newHeadPos);
+        if (ateApple) {
+            speedCounter -= 5; // Make game slightly slower
+            score++;
+            generate_apple();
+        }
+
+        // Move snake
+        move_snake(currentDirection, ateApple);
+
+        // Update display
+        display();
+
+        // Calculate dynamic speed (gets faster as score increases)
+        uint16_t speedReduction = game_regime ? (speedCounter * 5) : (speedCounter);
+        uint16_t currentSpeed = INITIAL_SPEED - speedReduction;
+        if (currentSpeed < 100) currentSpeed = 100; // Minimum speed
+        Delay_Ms(currentSpeed);
+    }
+}
+void post_game_menu(void){
+    uint32_t timeout = 10000; // 10 second timeout
+    while(timeout > 0) {
+        load_scores();
+        if(JOY_3_pressed()) {
+            while(JOY_3_pressed()) Delay_Ms(10);
+            reset_all_scores();
+            timeout = 10000; // Reset timeout
+        }
+        else if (JOY_7_pressed()) {
+            while(JOY_7_pressed()) Delay_Ms(10); // Debounce
+            show_name_and_highest_score();
+            Delay_Ms(500); // Prevent immediate re-trigger
+        }
+        else if(JOY_5_pressed()) {
+            while(JOY_5_pressed()) Delay_Ms(10);
+            currentScoreIndex++;
+            break; // Restart game
+        }
+        else if (JOY_9_pressed()) {
+            while(JOY_9_pressed()) Delay_Ms(10); // Debounce
+            reveal_all_scores();
+            Delay_Ms(500); // Prevent immediate re-trigger
+        }
+        Delay_Ms(10);
+        timeout -= 10;
+    }
+}
+/***************************************************************************/
+/***************************************************************************/
+/***************************Main functions************************************/
+/***************************************************************************/
+/***************************************************************************/
+//Sorry for shit code:(, especially part with EEPROM
+int main(void) {
+    system_start_prog();
+    //choosing name
+    choosing_name_loop();
     // Game loop
     while(1) {
         char player_name[NAME_LENGTH+1];
@@ -820,51 +909,9 @@ int main(void) {
         game_init();
         display();
         Delay_Ms(500); // Initial delay
-
         int8_t currentDirection = -1; // Start moving left
         gameOver = false;
-
-        while(!gameOver) {
-
-            if (JOY_1_pressed()) { // changing game mode
-                          while(JOY_1_pressed()) Delay_Ms(20);
-                          game_regime = !game_regime;
-                          Delay_Ms(100);
-
-                      }
-            // Get input
-            currentDirection = get_new_direction(currentDirection);
-            speedCounter++;
-            // Calculate new head position
-            int8_t newHeadPos = snakeHead + currentDirection;
-
-            // Check for collisions
-            if (check_collision(newHeadPos)) {
-                gameOver = true;
-                break;
-            }
-
-            // Check if apple was eaten
-            bool ateApple = check_apple(newHeadPos);
-            if (ateApple) {
-                speedCounter -= 5; // Make game slightly slower
-                score++;
-                generate_apple();
-            }
-
-            // Move snake
-            move_snake(currentDirection, ateApple);
-
-            // Update display
-            display();
-
-            // Calculate dynamic speed (gets faster as score increases)
-            uint16_t speedReduction = game_regime ? (speedCounter * 5) : (speedCounter);
-            uint16_t currentSpeed = INITIAL_SPEED - speedReduction;
-            if (currentSpeed < 100) currentSpeed = 100; // Minimum speed
-            Delay_Ms(currentSpeed);
-        }
-
+        inside_game(currentDirection);
         if(gameOver) {
             // Save the current score
             if(currentScoreIndex < MAX_SCORES) {
@@ -885,32 +932,7 @@ int main(void) {
             }
 
             // Post-game menu
-            uint32_t timeout = 10000; // 10 second timeout
-            while(timeout > 0) {
-                load_scores();
-                if(JOY_3_pressed()) {
-                    while(JOY_3_pressed()) Delay_Ms(10);
-                    reset_all_scores();
-                    timeout = 10000; // Reset timeout
-                }
-                else if (JOY_7_pressed()) {
-                    while(JOY_7_pressed()) Delay_Ms(10); // Debounce
-                    show_name_and_highest_score();
-                    Delay_Ms(500); // Prevent immediate re-trigger
-                }
-                else if(JOY_5_pressed()) {
-                    while(JOY_5_pressed()) Delay_Ms(10);
-                    currentScoreIndex++;
-                    break; // Restart game
-                }
-                else if (JOY_9_pressed()) {
-                    while(JOY_9_pressed()) Delay_Ms(10); // Debounce
-                    reveal_all_scores();
-                    Delay_Ms(500); // Prevent immediate re-trigger
-                }
-                Delay_Ms(10);
-                timeout -= 10;
-            }
+            post_game_menu();
             currentScoreIndex++;
         }
     }
