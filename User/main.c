@@ -32,13 +32,13 @@
 // first 8 pages are used for status
 //Letters define
 #define NAME_LENGTH 3
-#define NAME_START_ADDR 0x0200  // Starting address for name storage
+#define NAME_START_ADDR 0x0100  // Starting address for name storage
 #define MAX_USERS 3
 #define SCORES_PER_USER MAX_SCORES
 #define SCORE_RECORD_SIZE 2  // Each score record is 2 bytes (index + value)
-#define USER_SCORE_SPACE (SCORES_PER_USER * SCORE_RECORD_SIZE)+20
+#define USER_SCORE_SPACE (SCORES_PER_USER * SCORE_RECORD_SIZE)
 #define SCORE_START_ADDR 0x0008
-#define USER_ID_START_ADDR 0x0300
+#define USER_ID_START_ADDR 0x0200
 typedef struct snakePartDir {
     char part;      // 'h'=head, 'b'=body, 't'=tail, 'a'=apple, '0'=empty
     int8_t direction; // movement direction
@@ -323,7 +323,7 @@ char* create_name(void) {
     new_name[NAME_LENGTH] = '\0'; // Null-terminate
     current_user_id = load_id();
     // Save to the next available slot
-    if(current_user_id < MAX_USERS) {
+    if(current_user_id < MAX_USERS+1) {
         save_name(current_user_id, new_name);
         strncpy(current_name, new_name, NAME_LENGTH);
         current_user_id++;
@@ -500,21 +500,21 @@ void reveal_all_scores(void) {
 /***********************************/
 void save_id(uint8_t user_id){
     uint16_t addr = USER_ID_START_ADDR;
-    i2c_write(EEPROM_ADDR, addr, I2C_REGADDR_1B, &user_id, 1);
+    i2c_write(EEPROM_ADDR, addr, I2C_REGADDR_2B, &user_id, 1);
     Delay_Ms(3);
     printf("User count %d saved\n", user_id);
 }
 uint8_t load_id (void){
     uint16_t addr = USER_ID_START_ADDR;
     uint8_t user_count = 0;
-    i2c_read(EEPROM_ADDR, addr, I2C_REGADDR_1B, &user_count, 1);
+    i2c_read(EEPROM_ADDR, addr, I2C_REGADDR_2B, &user_count, 1);
     printf("Loaded user count: %d\n", user_count);
     return user_count;
 }
 void save_name(uint8_t user_id, const char* name) {
     if (user_id >= MAX_USERS) return;
 
-    uint16_t addr = NAME_START_ADDR + (user_id * NAME_LENGTH);
+    uint16_t addr = NAME_START_ADDR + ((user_id*20) * NAME_LENGTH);
     uint8_t data[NAME_LENGTH];
 
     // Copy name to buffer
@@ -535,7 +535,7 @@ void load_name(uint8_t user_id, char* buffer) {
         return;
     }
 
-    uint16_t addr = NAME_START_ADDR + (user_id * NAME_LENGTH);
+    uint16_t addr = NAME_START_ADDR + ((user_id*20) * NAME_LENGTH);
     uint8_t data[NAME_LENGTH];
 
     // Read from EEPROM
@@ -621,14 +621,6 @@ void show_name_and_highest_score(void) {
     clear();
     WS2812BSimpleSend(LED_PINS, (uint8_t *)led_array, NUM_LEDS * 3);
 }
-
-
-
-
-
-
-
-
 /***********************************/
 /***********************************/
 /*****EEPROM Names Handling********/
@@ -785,16 +777,6 @@ int main(void) {
     i2c_init();
     init_storage();
     JOY_sound(1000, 100);
-    current_user_id = load_id();
-    if(current_user_id == 0) {
-            // First time setup - initialize user counter
-         save_id(0);
-    }
-        // Load current user's name if available
-   if(current_user_id > 0) {
-         load_name(current_user_id - 1, current_name);
-   }
-
     //choosing name
     while(1){
         scroll_text("YOUR NAME", appleColor, 120);
@@ -803,25 +785,24 @@ int main(void) {
                         if(JOY_5_pressed()){
                             while(JOY_5_pressed()) Delay_Ms(20);
                             create_name();
-                            save_name(Identifier, new_name);
                             break;
                         }
                         if(JOY_1_pressed()){
                                                   while(JOY_1_pressed()) Delay_Ms(20);
                                                   current_user_id = 0;
-                                                  available_names(0);
+                                                  available_names(current_user_id);
                                                   break;
                         }
                         if(JOY_4_pressed()){
                                                   while(JOY_4_pressed()) Delay_Ms(20);
                                                   current_user_id = 1;
-                                                  available_names(1);
+                                                  available_names(current_user_id);
                                                   break;
                         }
                         if(JOY_7_pressed()){
                                                   while(JOY_7_pressed()) Delay_Ms(20);
                                                   current_user_id = 2;
-                                                  available_names(2);
+                                                  available_names(current_user_id);
                                                   break;
                         }
 

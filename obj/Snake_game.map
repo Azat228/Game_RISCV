@@ -217,6 +217,8 @@ Discarded input sections
                 0x0000000000000000      0x114 ./User/main.o
  .text.load_all_names
                 0x0000000000000000       0x3a ./User/main.o
+ .bss.Identifier
+                0x0000000000000000        0x1 ./User/main.o
  .data.ADCPrescTable
                 0x0000000000000000       0x14 ./User/main.o
  .data.APBAHBPrescTable
@@ -418,7 +420,7 @@ END GROUP
  *fill*         0x000000000000013e        0x2 
                 0x0000000000000140                _einit = .
 
-.text           0x0000000000000140     0x3100
+.text           0x0000000000000140     0x30e0
                 0x0000000000000140                . = ALIGN (0x4)
  *(.text)
  .text          0x0000000000000140       0x14 c:/mounriver/mounriver_studio/toolchain/risc-v embedded gcc/bin/../lib/gcc/riscv-none-embed/8.2.0/rv32ecxw/ilp32e\libgcc.a(save-restore.o)
@@ -518,306 +520,306 @@ END GROUP
                 0x00000000000008ba      0x116 ./User/main.o
                 0x00000000000008ba                i2c_write
  .text.save_name.part.8
-                0x00000000000009d0       0x4a ./User/main.o
+                0x00000000000009d0       0x50 ./User/main.o
  .text.i2c_read
-                0x0000000000000a1a      0x17e ./User/main.o
-                0x0000000000000a1a                i2c_read
+                0x0000000000000a20      0x17e ./User/main.o
+                0x0000000000000a20                i2c_read
  .text.ADC_read_pad
-                0x0000000000000b98        0xc ./User/main.o
-                0x0000000000000b98                ADC_read_pad
+                0x0000000000000b9e        0xc ./User/main.o
+                0x0000000000000b9e                ADC_read_pad
  .text.ADC_read_smallboard
-                0x0000000000000ba4        0xa ./User/main.o
-                0x0000000000000ba4                ADC_read_smallboard
+                0x0000000000000baa        0xa ./User/main.o
+                0x0000000000000baa                ADC_read_smallboard
  .text.multiple_ADC_reads
-                0x0000000000000bae       0x52 ./User/main.o
-                0x0000000000000bae                multiple_ADC_reads
+                0x0000000000000bb4       0x52 ./User/main.o
+                0x0000000000000bb4                multiple_ADC_reads
  .text.JOY_check_button
-                0x0000000000000c00      0x12e ./User/main.o
-                0x0000000000000c00                JOY_check_button
+                0x0000000000000c06      0x12e ./User/main.o
+                0x0000000000000c06                JOY_check_button
  .text.JOY_random
-                0x0000000000000d2e       0x22 ./User/main.o
-                0x0000000000000d2e                JOY_random
+                0x0000000000000d34       0x22 ./User/main.o
+                0x0000000000000d34                JOY_random
  .text.set_color
-                0x0000000000000d50       0xb4 ./User/main.o
-                0x0000000000000d50                set_color
- .text.clear    0x0000000000000e04       0x28 ./User/main.o
+                0x0000000000000d56       0xb4 ./User/main.o
+                0x0000000000000d56                set_color
+ .text.clear    0x0000000000000e0a       0x28 ./User/main.o
  .text.font_draw
-                0x0000000000000e2c       0x56 ./User/main.o
+                0x0000000000000e32       0x56 ./User/main.o
  .text.JOY_sound
-                0x0000000000000e82       0xa4 ./User/main.o
-                0x0000000000000e82                JOY_sound
+                0x0000000000000e88       0xa4 ./User/main.o
+                0x0000000000000e88                JOY_sound
  .text.WS2812BSimpleSend
-                0x0000000000000f26       0xd6 ./User/main.o
-                0x0000000000000f26                WS2812BSimpleSend
+                0x0000000000000f2c       0xd6 ./User/main.o
+                0x0000000000000f2c                WS2812BSimpleSend
  .text.generate_apple
-                0x0000000000000ffc       0x28 ./User/main.o
-                0x0000000000000ffc                generate_apple
+                0x0000000000001002       0x28 ./User/main.o
+                0x0000000000001002                generate_apple
  .text.game_init
-                0x0000000000001024       0x50 ./User/main.o
-                0x0000000000001024                game_init
- .text.display  0x0000000000001074       0xbe ./User/main.o
-                0x0000000000001074                display
+                0x000000000000102a       0x50 ./User/main.o
+                0x000000000000102a                game_init
+ .text.display  0x000000000000107a       0xbe ./User/main.o
+                0x000000000000107a                display
  .text.get_new_direction
-                0x0000000000001132       0x76 ./User/main.o
-                0x0000000000001132                get_new_direction
+                0x0000000000001138       0x76 ./User/main.o
+                0x0000000000001138                get_new_direction
  .text.check_collision
-                0x00000000000011a8       0x68 ./User/main.o
-                0x00000000000011a8                check_collision
+                0x00000000000011ae       0x68 ./User/main.o
+                0x00000000000011ae                check_collision
  .text.move_snake
-                0x0000000000001210       0xac ./User/main.o
-                0x0000000000001210                move_snake
+                0x0000000000001216       0xac ./User/main.o
+                0x0000000000001216                move_snake
  .text.show_current_score
-                0x00000000000012bc       0x6a ./User/main.o
-                0x00000000000012bc                show_current_score
+                0x00000000000012c2       0x6a ./User/main.o
+                0x00000000000012c2                show_current_score
  .text.display_letter
-                0x0000000000001326       0x76 ./User/main.o
-                0x0000000000001326                display_letter
+                0x000000000000132c       0x76 ./User/main.o
+                0x000000000000132c                display_letter
  .text.save_currentScore_EEPROM
-                0x000000000000139c       0xd0 ./User/main.o
-                0x000000000000139c                save_currentScore_EEPROM
+                0x00000000000013a2       0xce ./User/main.o
+                0x00000000000013a2                save_currentScore_EEPROM
  .text.load_scores
-                0x000000000000146c       0x8a ./User/main.o
-                0x000000000000146c                load_scores
+                0x0000000000001470       0x88 ./User/main.o
+                0x0000000000001470                load_scores
  .text.reveal_all_scores
-                0x00000000000014f6      0x180 ./User/main.o
-                0x00000000000014f6                reveal_all_scores
- .text.save_id  0x0000000000001676       0x3c ./User/main.o
-                0x0000000000001676                save_id
- .text.load_id  0x00000000000016b2       0x34 ./User/main.o
-                0x00000000000016b2                load_id
+                0x00000000000014f8      0x180 ./User/main.o
+                0x00000000000014f8                reveal_all_scores
+ .text.save_id  0x0000000000001678       0x3c ./User/main.o
+                0x0000000000001678                save_id
+ .text.load_id  0x00000000000016b4       0x34 ./User/main.o
+                0x00000000000016b4                load_id
  .text.save_name
-                0x00000000000016e6       0x14 ./User/main.o
-                0x00000000000016e6                save_name
+                0x00000000000016e8       0x14 ./User/main.o
+                0x00000000000016e8                save_name
  .text.load_name
-                0x00000000000016fa       0x52 ./User/main.o
-                0x00000000000016fa                load_name
+                0x00000000000016fc       0x5a ./User/main.o
+                0x00000000000016fc                load_name
  .text.get_current_user_name
-                0x000000000000174c       0x22 ./User/main.o
-                0x000000000000174c                get_current_user_name
+                0x0000000000001756       0x22 ./User/main.o
+                0x0000000000001756                get_current_user_name
  .text.is_storage_initialized
-                0x000000000000176e       0x44 ./User/main.o
-                0x000000000000176e                is_storage_initialized
+                0x0000000000001778       0x44 ./User/main.o
+                0x0000000000001778                is_storage_initialized
  .text.reset_storage
-                0x00000000000017b2       0x6a ./User/main.o
-                0x00000000000017b2                reset_storage
+                0x00000000000017bc       0x6a ./User/main.o
+                0x00000000000017bc                reset_storage
  .text.reset_all_scores
-                0x000000000000181c       0x16 ./User/main.o
-                0x000000000000181c                reset_all_scores
+                0x0000000000001826       0x16 ./User/main.o
+                0x0000000000001826                reset_all_scores
  .text.init_storage
-                0x0000000000001832       0x24 ./User/main.o
-                0x0000000000001832                init_storage
+                0x000000000000183c       0x24 ./User/main.o
+                0x000000000000183c                init_storage
  .text.scroll_text
-                0x0000000000001856      0x176 ./User/main.o
-                0x0000000000001856                scroll_text
+                0x0000000000001860      0x176 ./User/main.o
+                0x0000000000001860                scroll_text
  .text.create_name
-                0x00000000000019cc      0x194 ./User/main.o
-                0x00000000000019cc                create_name
+                0x00000000000019d6      0x194 ./User/main.o
+                0x00000000000019d6                create_name
  .text.available_names
-                0x0000000000001b60       0x2a ./User/main.o
-                0x0000000000001b60                available_names
+                0x0000000000001b6a       0x2a ./User/main.o
+                0x0000000000001b6a                available_names
  .text.show_name_and_highest_score
-                0x0000000000001b8a      0x170 ./User/main.o
-                0x0000000000001b8a                show_name_and_highest_score
+                0x0000000000001b94      0x170 ./User/main.o
+                0x0000000000001b94                show_name_and_highest_score
  .text.startup.main
-                0x0000000000001cfa      0x466 ./User/main.o
-                0x0000000000001cfa                main
+                0x0000000000001d04      0x43a ./User/main.o
+                0x0000000000001d04                main
  .text.__udivdi3
-                0x0000000000002160      0x4f2 c:/mounriver/mounriver_studio/toolchain/risc-v embedded gcc/bin/../lib/gcc/riscv-none-embed/8.2.0/rv32ecxw/ilp32e\libgcc.a(_udivdi3.o)
-                0x0000000000002160                __udivdi3
- .text.malloc   0x0000000000002652        0xe c:/mounriver/mounriver_studio/toolchain/risc-v embedded gcc/bin/../lib/gcc/riscv-none-embed/8.2.0/../../../../riscv-none-embed/lib/rv32ecxw/ilp32e\libg_nano.a(lib_a-malloc.o)
-                0x0000000000002652                malloc
+                0x000000000000213e      0x4f2 c:/mounriver/mounriver_studio/toolchain/risc-v embedded gcc/bin/../lib/gcc/riscv-none-embed/8.2.0/rv32ecxw/ilp32e\libgcc.a(_udivdi3.o)
+                0x000000000000213e                __udivdi3
+ .text.malloc   0x0000000000002630        0xe c:/mounriver/mounriver_studio/toolchain/risc-v embedded gcc/bin/../lib/gcc/riscv-none-embed/8.2.0/../../../../riscv-none-embed/lib/rv32ecxw/ilp32e\libg_nano.a(lib_a-malloc.o)
+                0x0000000000002630                malloc
  .text._malloc_r
-                0x0000000000002660       0xd4 c:/mounriver/mounriver_studio/toolchain/risc-v embedded gcc/bin/../lib/gcc/riscv-none-embed/8.2.0/../../../../riscv-none-embed/lib/rv32ecxw/ilp32e\libg_nano.a(lib_a-nano-mallocr.o)
-                0x0000000000002660                _malloc_r
- .text._sbrk_r  0x0000000000002734       0x28 c:/mounriver/mounriver_studio/toolchain/risc-v embedded gcc/bin/../lib/gcc/riscv-none-embed/8.2.0/../../../../riscv-none-embed/lib/rv32ecxw/ilp32e\libg_nano.a(lib_a-sbrkr.o)
-                0x0000000000002734                _sbrk_r
+                0x000000000000263e       0xd4 c:/mounriver/mounriver_studio/toolchain/risc-v embedded gcc/bin/../lib/gcc/riscv-none-embed/8.2.0/../../../../riscv-none-embed/lib/rv32ecxw/ilp32e\libg_nano.a(lib_a-nano-mallocr.o)
+                0x000000000000263e                _malloc_r
+ .text._sbrk_r  0x0000000000002712       0x28 c:/mounriver/mounriver_studio/toolchain/risc-v embedded gcc/bin/../lib/gcc/riscv-none-embed/8.2.0/../../../../riscv-none-embed/lib/rv32ecxw/ilp32e\libg_nano.a(lib_a-sbrkr.o)
+                0x0000000000002712                _sbrk_r
  .text.__malloc_lock
-                0x000000000000275c        0x2 c:/mounriver/mounriver_studio/toolchain/risc-v embedded gcc/bin/../lib/gcc/riscv-none-embed/8.2.0/../../../../riscv-none-embed/lib/rv32ecxw/ilp32e\libg_nano.a(lib_a-mlock.o)
-                0x000000000000275c                __malloc_lock
+                0x000000000000273a        0x2 c:/mounriver/mounriver_studio/toolchain/risc-v embedded gcc/bin/../lib/gcc/riscv-none-embed/8.2.0/../../../../riscv-none-embed/lib/rv32ecxw/ilp32e\libg_nano.a(lib_a-mlock.o)
+                0x000000000000273a                __malloc_lock
  .text.__malloc_unlock
-                0x000000000000275e        0x2 c:/mounriver/mounriver_studio/toolchain/risc-v embedded gcc/bin/../lib/gcc/riscv-none-embed/8.2.0/../../../../riscv-none-embed/lib/rv32ecxw/ilp32e\libg_nano.a(lib_a-mlock.o)
-                0x000000000000275e                __malloc_unlock
- .text._sbrk    0x0000000000002760       0x20 c:/mounriver/mounriver_studio/toolchain/risc-v embedded gcc/bin/../lib/gcc/riscv-none-embed/8.2.0/../../../../riscv-none-embed/lib/rv32ecxw/ilp32e\libnosys.a(sbrk.o)
-                0x0000000000002760                _sbrk
+                0x000000000000273c        0x2 c:/mounriver/mounriver_studio/toolchain/risc-v embedded gcc/bin/../lib/gcc/riscv-none-embed/8.2.0/../../../../riscv-none-embed/lib/rv32ecxw/ilp32e\libg_nano.a(lib_a-mlock.o)
+                0x000000000000273c                __malloc_unlock
+ .text._sbrk    0x000000000000273e       0x20 c:/mounriver/mounriver_studio/toolchain/risc-v embedded gcc/bin/../lib/gcc/riscv-none-embed/8.2.0/../../../../riscv-none-embed/lib/rv32ecxw/ilp32e\libnosys.a(sbrk.o)
+                0x000000000000273e                _sbrk
  *(.rodata)
  *(.rodata*)
  .rodata.puts.str1.4
-                0x0000000000002780        0x0 ./User/ch32v003fun/ch32v003fun.o
+                0x000000000000275e        0x0 ./User/ch32v003fun/ch32v003fun.o
                                           0x2 (size before relaxing)
- *fill*         0x0000000000002780        0x0 
- .rodata.A      0x0000000000002780       0x40 ./User/main.o
-                0x0000000000002780                A
- .rodata.B      0x00000000000027c0       0x40 ./User/main.o
-                0x00000000000027c0                B
- .rodata.C      0x0000000000002800       0x40 ./User/main.o
-                0x0000000000002800                C
- .rodata.D      0x0000000000002840       0x40 ./User/main.o
-                0x0000000000002840                D
- .rodata.E      0x0000000000002880       0x40 ./User/main.o
-                0x0000000000002880                E
- .rodata.F      0x00000000000028c0       0x40 ./User/main.o
-                0x00000000000028c0                F
- .rodata.G      0x0000000000002900       0x40 ./User/main.o
-                0x0000000000002900                G
- .rodata.H      0x0000000000002940       0x40 ./User/main.o
-                0x0000000000002940                H
- .rodata.I      0x0000000000002980       0x40 ./User/main.o
-                0x0000000000002980                I
- .rodata.J      0x00000000000029c0       0x40 ./User/main.o
-                0x00000000000029c0                J
- .rodata.K      0x0000000000002a00       0x40 ./User/main.o
-                0x0000000000002a00                K
- .rodata.L      0x0000000000002a40       0x40 ./User/main.o
-                0x0000000000002a40                L
- .rodata.M      0x0000000000002a80       0x40 ./User/main.o
-                0x0000000000002a80                M
- .rodata.N      0x0000000000002ac0       0x40 ./User/main.o
-                0x0000000000002ac0                N
- .rodata.O      0x0000000000002b00       0x40 ./User/main.o
-                0x0000000000002b00                O
- .rodata.P      0x0000000000002b40       0x40 ./User/main.o
-                0x0000000000002b40                P
- .rodata.Q      0x0000000000002b80       0x40 ./User/main.o
-                0x0000000000002b80                Q
- .rodata.R      0x0000000000002bc0       0x40 ./User/main.o
-                0x0000000000002bc0                R
- .rodata.S      0x0000000000002c00       0x40 ./User/main.o
-                0x0000000000002c00                S
- .rodata.T      0x0000000000002c40       0x40 ./User/main.o
-                0x0000000000002c40                T
- .rodata.U      0x0000000000002c80       0x40 ./User/main.o
-                0x0000000000002c80                U
- .rodata.V      0x0000000000002cc0       0x40 ./User/main.o
-                0x0000000000002cc0                V
- .rodata.W      0x0000000000002d00       0x40 ./User/main.o
-                0x0000000000002d00                W
- .rodata.X      0x0000000000002d40       0x40 ./User/main.o
-                0x0000000000002d40                X
- .rodata.Y      0x0000000000002d80       0x40 ./User/main.o
-                0x0000000000002d80                Y
- .rodata.Z      0x0000000000002dc0       0x40 ./User/main.o
-                0x0000000000002dc0                Z
+ *fill*         0x000000000000275e        0x2 
+ .rodata.A      0x0000000000002760       0x40 ./User/main.o
+                0x0000000000002760                A
+ .rodata.B      0x00000000000027a0       0x40 ./User/main.o
+                0x00000000000027a0                B
+ .rodata.C      0x00000000000027e0       0x40 ./User/main.o
+                0x00000000000027e0                C
+ .rodata.D      0x0000000000002820       0x40 ./User/main.o
+                0x0000000000002820                D
+ .rodata.E      0x0000000000002860       0x40 ./User/main.o
+                0x0000000000002860                E
+ .rodata.F      0x00000000000028a0       0x40 ./User/main.o
+                0x00000000000028a0                F
+ .rodata.G      0x00000000000028e0       0x40 ./User/main.o
+                0x00000000000028e0                G
+ .rodata.H      0x0000000000002920       0x40 ./User/main.o
+                0x0000000000002920                H
+ .rodata.I      0x0000000000002960       0x40 ./User/main.o
+                0x0000000000002960                I
+ .rodata.J      0x00000000000029a0       0x40 ./User/main.o
+                0x00000000000029a0                J
+ .rodata.K      0x00000000000029e0       0x40 ./User/main.o
+                0x00000000000029e0                K
+ .rodata.L      0x0000000000002a20       0x40 ./User/main.o
+                0x0000000000002a20                L
+ .rodata.M      0x0000000000002a60       0x40 ./User/main.o
+                0x0000000000002a60                M
+ .rodata.N      0x0000000000002aa0       0x40 ./User/main.o
+                0x0000000000002aa0                N
+ .rodata.O      0x0000000000002ae0       0x40 ./User/main.o
+                0x0000000000002ae0                O
+ .rodata.P      0x0000000000002b20       0x40 ./User/main.o
+                0x0000000000002b20                P
+ .rodata.Q      0x0000000000002b60       0x40 ./User/main.o
+                0x0000000000002b60                Q
+ .rodata.R      0x0000000000002ba0       0x40 ./User/main.o
+                0x0000000000002ba0                R
+ .rodata.S      0x0000000000002be0       0x40 ./User/main.o
+                0x0000000000002be0                S
+ .rodata.T      0x0000000000002c20       0x40 ./User/main.o
+                0x0000000000002c20                T
+ .rodata.U      0x0000000000002c60       0x40 ./User/main.o
+                0x0000000000002c60                U
+ .rodata.V      0x0000000000002ca0       0x40 ./User/main.o
+                0x0000000000002ca0                V
+ .rodata.W      0x0000000000002ce0       0x40 ./User/main.o
+                0x0000000000002ce0                W
+ .rodata.X      0x0000000000002d20       0x40 ./User/main.o
+                0x0000000000002d20                X
+ .rodata.Y      0x0000000000002d60       0x40 ./User/main.o
+                0x0000000000002d60                Y
+ .rodata.Z      0x0000000000002da0       0x40 ./User/main.o
+                0x0000000000002da0                Z
  .rodata.font_0
-                0x0000000000002e00        0xf ./User/main.o
-                0x0000000000002e00                font_0
- *fill*         0x0000000000002e0f        0x1 
+                0x0000000000002de0        0xf ./User/main.o
+                0x0000000000002de0                font_0
+ *fill*         0x0000000000002def        0x1 
  .rodata.font_1
-                0x0000000000002e10        0xf ./User/main.o
-                0x0000000000002e10                font_1
- *fill*         0x0000000000002e1f        0x1 
+                0x0000000000002df0        0xf ./User/main.o
+                0x0000000000002df0                font_1
+ *fill*         0x0000000000002dff        0x1 
  .rodata.font_2
-                0x0000000000002e20        0xf ./User/main.o
-                0x0000000000002e20                font_2
- *fill*         0x0000000000002e2f        0x1 
+                0x0000000000002e00        0xf ./User/main.o
+                0x0000000000002e00                font_2
+ *fill*         0x0000000000002e0f        0x1 
  .rodata.font_3
-                0x0000000000002e30        0xf ./User/main.o
-                0x0000000000002e30                font_3
- *fill*         0x0000000000002e3f        0x1 
+                0x0000000000002e10        0xf ./User/main.o
+                0x0000000000002e10                font_3
+ *fill*         0x0000000000002e1f        0x1 
  .rodata.font_4
-                0x0000000000002e40        0xf ./User/main.o
-                0x0000000000002e40                font_4
- *fill*         0x0000000000002e4f        0x1 
+                0x0000000000002e20        0xf ./User/main.o
+                0x0000000000002e20                font_4
+ *fill*         0x0000000000002e2f        0x1 
  .rodata.font_5
-                0x0000000000002e50        0xf ./User/main.o
-                0x0000000000002e50                font_5
- *fill*         0x0000000000002e5f        0x1 
+                0x0000000000002e30        0xf ./User/main.o
+                0x0000000000002e30                font_5
+ *fill*         0x0000000000002e3f        0x1 
  .rodata.font_6
-                0x0000000000002e60        0xf ./User/main.o
-                0x0000000000002e60                font_6
- *fill*         0x0000000000002e6f        0x1 
+                0x0000000000002e40        0xf ./User/main.o
+                0x0000000000002e40                font_6
+ *fill*         0x0000000000002e4f        0x1 
  .rodata.font_7
-                0x0000000000002e70        0xf ./User/main.o
-                0x0000000000002e70                font_7
- *fill*         0x0000000000002e7f        0x1 
+                0x0000000000002e50        0xf ./User/main.o
+                0x0000000000002e50                font_7
+ *fill*         0x0000000000002e5f        0x1 
  .rodata.font_8
-                0x0000000000002e80        0xf ./User/main.o
-                0x0000000000002e80                font_8
- *fill*         0x0000000000002e8f        0x1 
+                0x0000000000002e60        0xf ./User/main.o
+                0x0000000000002e60                font_8
+ *fill*         0x0000000000002e6f        0x1 
  .rodata.font_9
-                0x0000000000002e90        0xf ./User/main.o
-                0x0000000000002e90                font_9
- *fill*         0x0000000000002e9f        0x1 
+                0x0000000000002e70        0xf ./User/main.o
+                0x0000000000002e70                font_9
+ *fill*         0x0000000000002e7f        0x1 
  .rodata.font_D
-                0x0000000000002ea0        0xf ./User/main.o
-                0x0000000000002ea0                font_D
- *fill*         0x0000000000002eaf        0x1 
+                0x0000000000002e80        0xf ./User/main.o
+                0x0000000000002e80                font_D
+ *fill*         0x0000000000002e8f        0x1 
  .rodata.font_X
-                0x0000000000002eb0        0xf ./User/main.o
-                0x0000000000002eb0                font_X
- *fill*         0x0000000000002ebf        0x1 
+                0x0000000000002e90        0xf ./User/main.o
+                0x0000000000002e90                font_X
+ *fill*         0x0000000000002e9f        0x1 
  .rodata.font_chars
-                0x0000000000002ec0      0x10e ./User/main.o
-                0x0000000000002ec0                font_chars
- *fill*         0x0000000000002fce        0x2 
+                0x0000000000002ea0      0x10e ./User/main.o
+                0x0000000000002ea0                font_chars
+ *fill*         0x0000000000002fae        0x2 
  .rodata.get_current_user_name.str1.4
-                0x0000000000002fd0        0x7 ./User/main.o
- *fill*         0x0000000000002fd7        0x1 
+                0x0000000000002fb0        0x7 ./User/main.o
+ *fill*         0x0000000000002fb7        0x1 
  .rodata.init_storage.str1.4
-                0x0000000000002fd8       0x30 ./User/main.o
+                0x0000000000002fb8       0x30 ./User/main.o
  .rodata.is_storage_initialized.str1.4
-                0x0000000000003008        0x9 ./User/main.o
- *fill*         0x0000000000003011        0x3 
+                0x0000000000002fe8        0x9 ./User/main.o
+ *fill*         0x0000000000002ff1        0x3 
  .rodata.load_id.str1.4
-                0x0000000000003014       0x17 ./User/main.o
- *fill*         0x000000000000302b        0x1 
+                0x0000000000002ff4       0x17 ./User/main.o
+ *fill*         0x000000000000300b        0x1 
  .rodata.load_name.str1.4
+                0x000000000000300c       0x1e ./User/main.o
+ *fill*         0x000000000000302a        0x2 
+ .rodata.load_scores.str1.4
                 0x000000000000302c       0x1e ./User/main.o
  *fill*         0x000000000000304a        0x2 
- .rodata.load_scores.str1.4
-                0x000000000000304c       0x1e ./User/main.o
- *fill*         0x000000000000306a        0x2 
  .rodata.main.str1.4
-                0x000000000000306c       0x34 ./User/main.o
+                0x000000000000304c       0x34 ./User/main.o
  .rodata.reset_all_scores.str1.4
-                0x00000000000030a0       0x1f ./User/main.o
- *fill*         0x00000000000030bf        0x1 
+                0x0000000000003080       0x1f ./User/main.o
+ *fill*         0x000000000000309f        0x1 
  .rodata.reset_storage.str1.4
-                0x00000000000030c0        0xe ./User/main.o
- *fill*         0x00000000000030ce        0x2 
+                0x00000000000030a0        0xe ./User/main.o
+ *fill*         0x00000000000030ae        0x2 
  .rodata.save_currentScore_EEPROM.str1.4
-                0x00000000000030d0       0x2f ./User/main.o
- *fill*         0x00000000000030ff        0x1 
+                0x00000000000030b0       0x2f ./User/main.o
+ *fill*         0x00000000000030df        0x1 
  .rodata.save_id.str1.4
-                0x0000000000003100       0x15 ./User/main.o
- *fill*         0x0000000000003115        0x3 
+                0x00000000000030e0       0x15 ./User/main.o
+ *fill*         0x00000000000030f5        0x3 
  .rodata.save_name.part.8.str1.4
-                0x0000000000003118       0x28 ./User/main.o
+                0x00000000000030f8       0x28 ./User/main.o
  .rodata.scroll_text.str1.4
-                0x0000000000003140       0x28 ./User/main.o
+                0x0000000000003120       0x28 ./User/main.o
                                           0x1 (size before relaxing)
  .rodata.__clz_tab
-                0x0000000000003140      0x100 c:/mounriver/mounriver_studio/toolchain/risc-v embedded gcc/bin/../lib/gcc/riscv-none-embed/8.2.0/rv32ecxw/ilp32e\libgcc.a(_clz.o)
-                0x0000000000003140                __clz_tab
+                0x0000000000003120      0x100 c:/mounriver/mounriver_studio/toolchain/risc-v embedded gcc/bin/../lib/gcc/riscv-none-embed/8.2.0/rv32ecxw/ilp32e\libgcc.a(_clz.o)
+                0x0000000000003120                __clz_tab
  *(.gnu.linkonce.t.*)
-                0x0000000000003240                . = ALIGN (0x4)
+                0x0000000000003220                . = ALIGN (0x4)
 
-.rela.dyn       0x0000000000003240        0x0
+.rela.dyn       0x0000000000003220        0x0
  .rela.text.handle_reset
-                0x0000000000003240        0x0 ./User/ch32v003fun/ch32v003fun.o
- .rela.init     0x0000000000003240        0x0 ./User/ch32v003fun/ch32v003fun.o
+                0x0000000000003220        0x0 ./User/ch32v003fun/ch32v003fun.o
+ .rela.init     0x0000000000003220        0x0 ./User/ch32v003fun/ch32v003fun.o
  .rela.data.impure_data
-                0x0000000000003240        0x0 ./User/ch32v003fun/ch32v003fun.o
+                0x0000000000003220        0x0 ./User/ch32v003fun/ch32v003fun.o
  .rela.text._sbrk
-                0x0000000000003240        0x0 ./User/ch32v003fun/ch32v003fun.o
+                0x0000000000003220        0x0 ./User/ch32v003fun/ch32v003fun.o
 
-.fini           0x0000000000003240        0x0
+.fini           0x0000000000003220        0x0
  *(SORT_NONE(.fini))
-                0x0000000000003240                . = ALIGN (0x4)
+                0x0000000000003220                . = ALIGN (0x4)
                 [!provide]                        PROVIDE (_etext = .)
                 [!provide]                        PROVIDE (_eitcm = .)
 
-.preinit_array  0x0000000000003240        0x0
+.preinit_array  0x0000000000003220        0x0
                 [!provide]                        PROVIDE (__preinit_array_start = .)
  *(.preinit_array)
                 [!provide]                        PROVIDE (__preinit_array_end = .)
 
-.init_array     0x0000000000003240        0x0
+.init_array     0x0000000000003220        0x0
                 [!provide]                        PROVIDE (__init_array_start = .)
  *(SORT_BY_INIT_PRIORITY(.init_array.*) SORT_BY_INIT_PRIORITY(.ctors.*))
  *(.init_array EXCLUDE_FILE(*crtend?.o *crtend.o *crtbegin?.o *crtbegin.o) .ctors)
                 [!provide]                        PROVIDE (__init_array_end = .)
 
-.fini_array     0x0000000000003240        0x0
+.fini_array     0x0000000000003220        0x0
                 [!provide]                        PROVIDE (__fini_array_start = .)
  *(SORT_BY_INIT_PRIORITY(.fini_array.*) SORT_BY_INIT_PRIORITY(.dtors.*))
  *(.fini_array EXCLUDE_FILE(*crtend?.o *crtend.o *crtbegin?.o *crtbegin.o) .dtors)
@@ -837,15 +839,15 @@ END GROUP
  *(SORT_BY_NAME(.dtors.*))
  *(.dtors)
 
-.dalign         0x0000000020000000        0x0 load address 0x0000000000003240
+.dalign         0x0000000020000000        0x0 load address 0x0000000000003220
                 0x0000000020000000                . = ALIGN (0x4)
                 0x0000000020000000                PROVIDE (_data_vma = .)
 
-.dlalign        0x0000000000003240        0x0
-                0x0000000000003240                . = ALIGN (0x4)
-                0x0000000000003240                PROVIDE (_data_lma = .)
+.dlalign        0x0000000000003220        0x0
+                0x0000000000003220                . = ALIGN (0x4)
+                0x0000000000003220                PROVIDE (_data_lma = .)
 
-.data           0x0000000020000000      0x128 load address 0x0000000000003240
+.data           0x0000000020000000      0x128 load address 0x0000000000003220
                 0x0000000020000000                . = ALIGN (0x4)
  *(.gnu.linkonce.r.*)
  *(.data .data.*)
@@ -913,7 +915,7 @@ END GROUP
                 0x0000000020000128                . = ALIGN (0x4)
                 0x0000000020000128                PROVIDE (_edata = .)
 
-.bss            0x0000000020000128      0x178 load address 0x0000000000003368
+.bss            0x0000000020000128      0x174 load address 0x0000000000003348
                 0x0000000020000128                . = ALIGN (0x4)
                 0x0000000020000128                PROVIDE (_sbss = .)
  *(.sbss*)
@@ -929,62 +931,58 @@ END GROUP
  *(.bss*)
  .bss.errno     0x0000000020000134        0x4 ./User/ch32v003fun/ch32v003fun.o
                 0x0000000020000134                errno
- .bss.Identifier
-                0x0000000020000138        0x1 ./User/main.o
-                0x0000000020000138                Identifier
- *fill*         0x0000000020000139        0x3 
  .bss.blankColor
-                0x000000002000013c        0x3 ./User/main.o
-                0x000000002000013c                blankColor
+                0x0000000020000138        0x3 ./User/main.o
+                0x0000000020000138                blankColor
  .bss.currentScoreIndex
-                0x000000002000013f        0x1 ./User/main.o
-                0x000000002000013f                currentScoreIndex
+                0x000000002000013b        0x1 ./User/main.o
+                0x000000002000013b                currentScoreIndex
  .bss.current_name
-                0x0000000020000140        0x3 ./User/main.o
-                0x0000000020000140                current_name
+                0x000000002000013c        0x3 ./User/main.o
+                0x000000002000013c                current_name
  .bss.current_user_id
-                0x0000000020000143        0x1 ./User/main.o
-                0x0000000020000143                current_user_id
+                0x000000002000013f        0x1 ./User/main.o
+                0x000000002000013f                current_user_id
  .bss.gameBoard
-                0x0000000020000144       0x80 ./User/main.o
-                0x0000000020000144                gameBoard
- .bss.gameOver  0x00000000200001c4        0x1 ./User/main.o
-                0x00000000200001c4                gameOver
+                0x0000000020000140       0x80 ./User/main.o
+                0x0000000020000140                gameBoard
+ .bss.gameOver  0x00000000200001c0        0x1 ./User/main.o
+                0x00000000200001c0                gameOver
  .bss.game_regime
-                0x00000000200001c5        0x1 ./User/main.o
-                0x00000000200001c5                game_regime
+                0x00000000200001c1        0x1 ./User/main.o
+                0x00000000200001c1                game_regime
  .bss.i2c_err_flags
-                0x00000000200001c6        0x2 ./User/main.o
-                0x00000000200001c6                i2c_err_flags
+                0x00000000200001c2        0x2 ./User/main.o
+                0x00000000200001c2                i2c_err_flags
  .bss.led_array
-                0x00000000200001c8       0xc0 ./User/main.o
-                0x00000000200001c8                led_array
- .bss.new_name  0x0000000020000288        0x4 ./User/main.o
-                0x0000000020000288                new_name
- .bss.rnval     0x000000002000028c        0x2 ./User/main.o
-                0x000000002000028c                rnval
- .bss.score     0x000000002000028e        0x1 ./User/main.o
-                0x000000002000028e                score
- *fill*         0x000000002000028f        0x1 
+                0x00000000200001c4       0xc0 ./User/main.o
+                0x00000000200001c4                led_array
+ .bss.new_name  0x0000000020000284        0x4 ./User/main.o
+                0x0000000020000284                new_name
+ .bss.rnval     0x0000000020000288        0x2 ./User/main.o
+                0x0000000020000288                rnval
+ .bss.score     0x000000002000028a        0x1 ./User/main.o
+                0x000000002000028a                score
+ *fill*         0x000000002000028b        0x1 
  .bss.scoreHistory
-                0x0000000020000290        0xa ./User/main.o
-                0x0000000020000290                scoreHistory
+                0x000000002000028c        0xa ./User/main.o
+                0x000000002000028c                scoreHistory
  .bss.snakeHead
-                0x000000002000029a        0x1 ./User/main.o
-                0x000000002000029a                snakeHead
+                0x0000000020000296        0x1 ./User/main.o
+                0x0000000020000296                snakeHead
  .bss.snakeTail
-                0x000000002000029b        0x1 ./User/main.o
-                0x000000002000029b                snakeTail
+                0x0000000020000297        0x1 ./User/main.o
+                0x0000000020000297                snakeTail
  .bss.speedCounter
-                0x000000002000029c        0x2 ./User/main.o
-                0x000000002000029c                speedCounter
+                0x0000000020000298        0x2 ./User/main.o
+                0x0000000020000298                speedCounter
  *(.gnu.linkonce.b.*)
  *(COMMON*)
-                0x00000000200002a0                . = ALIGN (0x4)
- *fill*         0x000000002000029e        0x2 
-                0x00000000200002a0                PROVIDE (_ebss = .)
+                0x000000002000029c                . = ALIGN (0x4)
+ *fill*         0x000000002000029a        0x2 
+                0x000000002000029c                PROVIDE (_ebss = .)
                 [!provide]                        PROVIDE (_end = _ebss)
-                0x00000000200002a0                PROVIDE (end = .)
+                0x000000002000029c                PROVIDE (end = .)
 
 .stack          0x0000000020000700      0x100
                 [!provide]                        PROVIDE (_heap_end = .)
@@ -995,19 +993,19 @@ END GROUP
                 0x0000000020000800                PROVIDE (_eusrstack = .)
 OUTPUT(Snake_game.elf elf32-littleriscv)
 
-.debug_info     0x0000000000000000     0x6a14
+.debug_info     0x0000000000000000     0x69e8
  .debug_info    0x0000000000000000     0x21a7 ./User/ch32v003fun/ch32v003fun.o
- .debug_info    0x00000000000021a7     0x484b ./User/main.o
- .debug_info    0x00000000000069f2       0x22 ./Startup/startup_ch32v00x.o
+ .debug_info    0x00000000000021a7     0x481f ./User/main.o
+ .debug_info    0x00000000000069c6       0x22 ./Startup/startup_ch32v00x.o
 
 .debug_abbrev   0x0000000000000000      0xdd6
  .debug_abbrev  0x0000000000000000      0x5ab ./User/ch32v003fun/ch32v003fun.o
  .debug_abbrev  0x00000000000005ab      0x819 ./User/main.o
  .debug_abbrev  0x0000000000000dc4       0x12 ./Startup/startup_ch32v00x.o
 
-.debug_loc      0x0000000000000000     0x40ed
+.debug_loc      0x0000000000000000     0x40ef
  .debug_loc     0x0000000000000000     0x1fa2 ./User/ch32v003fun/ch32v003fun.o
- .debug_loc     0x0000000000001fa2     0x214b ./User/main.o
+ .debug_loc     0x0000000000001fa2     0x214d ./User/main.o
 
 .debug_aranges  0x0000000000000000      0x398
  .debug_aranges
@@ -1022,10 +1020,10 @@ OUTPUT(Snake_game.elf elf32-littleriscv)
  .debug_ranges  0x0000000000000268      0x6f0 ./User/main.o
  .debug_ranges  0x0000000000000958       0x28 ./Startup/startup_ch32v00x.o
 
-.debug_line     0x0000000000000000     0x6756
+.debug_line     0x0000000000000000     0x66e2
  .debug_line    0x0000000000000000     0x2246 ./User/ch32v003fun/ch32v003fun.o
- .debug_line    0x0000000000002246     0x43fe ./User/main.o
- .debug_line    0x0000000000006644      0x112 ./Startup/startup_ch32v00x.o
+ .debug_line    0x0000000000002246     0x438a ./User/main.o
+ .debug_line    0x00000000000065d0      0x112 ./Startup/startup_ch32v00x.o
 
 .debug_str      0x0000000000000000     0x15f2
  .debug_str     0x0000000000000000      0x932 ./User/ch32v003fun/ch32v003fun.o
