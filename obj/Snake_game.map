@@ -993,19 +993,19 @@ END GROUP
                 0x0000000020000800                PROVIDE (_eusrstack = .)
 OUTPUT(Snake_game.elf elf32-littleriscv)
 
-.debug_info     0x0000000000000000     0x69e8
+.debug_info     0x0000000000000000     0x69df
  .debug_info    0x0000000000000000     0x21a7 ./User/ch32v003fun/ch32v003fun.o
- .debug_info    0x00000000000021a7     0x481f ./User/main.o
- .debug_info    0x00000000000069c6       0x22 ./Startup/startup_ch32v00x.o
+ .debug_info    0x00000000000021a7     0x4816 ./User/main.o
+ .debug_info    0x00000000000069bd       0x22 ./Startup/startup_ch32v00x.o
 
 .debug_abbrev   0x0000000000000000      0xdd6
  .debug_abbrev  0x0000000000000000      0x5ab ./User/ch32v003fun/ch32v003fun.o
  .debug_abbrev  0x00000000000005ab      0x819 ./User/main.o
  .debug_abbrev  0x0000000000000dc4       0x12 ./Startup/startup_ch32v00x.o
 
-.debug_loc      0x0000000000000000     0x40ef
+.debug_loc      0x0000000000000000     0x40d4
  .debug_loc     0x0000000000000000     0x1fa2 ./User/ch32v003fun/ch32v003fun.o
- .debug_loc     0x0000000000001fa2     0x214d ./User/main.o
+ .debug_loc     0x0000000000001fa2     0x2132 ./User/main.o
 
 .debug_aranges  0x0000000000000000      0x398
  .debug_aranges
@@ -1020,10 +1020,10 @@ OUTPUT(Snake_game.elf elf32-littleriscv)
  .debug_ranges  0x0000000000000268      0x6f0 ./User/main.o
  .debug_ranges  0x0000000000000958       0x28 ./Startup/startup_ch32v00x.o
 
-.debug_line     0x0000000000000000     0x66e2
+.debug_line     0x0000000000000000     0x66ce
  .debug_line    0x0000000000000000     0x2246 ./User/ch32v003fun/ch32v003fun.o
- .debug_line    0x0000000000002246     0x438a ./User/main.o
- .debug_line    0x00000000000065d0      0x112 ./Startup/startup_ch32v00x.o
+ .debug_line    0x0000000000002246     0x4376 ./User/main.o
+ .debug_line    0x00000000000065bc      0x112 ./Startup/startup_ch32v00x.o
 
 .debug_str      0x0000000000000000     0x15f2
  .debug_str     0x0000000000000000      0x932 ./User/ch32v003fun/ch32v003fun.o

@@ -563,7 +563,7 @@ void get_current_user_name(char* buffer) {
     load_name(current_user_id, buffer);  // Load last saved user
 }
 void show_name_and_highest_score(void) {
-    char names[MAX_USERS][NAME_LENGTH];
+    char names[MAX_USERS][NAME_LENGTH+1];
     uint8_t highest_scores[MAX_USERS] = {0};
     uint8_t best_player = 0;
     uint8_t global_high_score = 0;
@@ -598,7 +598,7 @@ void show_name_and_highest_score(void) {
     clear();
     WS2812BSimpleSend(LED_PINS, (uint8_t *)led_array, NUM_LEDS * 3);
     Delay_Ms(500);
-
+    names[best_player][3] = '\0';
     // Display player name
        scroll_text(names[best_player], scroll_name, 200);
         Delay_Ms(500);

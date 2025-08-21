@@ -31,23 +31,23 @@ Idx Name          Size      VMA       LMA       File off  Algn
                   ALLOC
   7 .stack        00000100  20000700  20000700  00005700  2**0
                   ALLOC
-  8 .debug_info   000069e8  00000000  00000000  00005128  2**0
+  8 .debug_info   000069df  00000000  00000000  00005128  2**0
                   CONTENTS, READONLY, DEBUGGING
-  9 .debug_abbrev 00000dd6  00000000  00000000  0000bb10  2**0
+  9 .debug_abbrev 00000dd6  00000000  00000000  0000bb07  2**0
                   CONTENTS, READONLY, DEBUGGING
- 10 .debug_loc    000040ef  00000000  00000000  0000c8e6  2**0
+ 10 .debug_loc    000040d4  00000000  00000000  0000c8dd  2**0
                   CONTENTS, READONLY, DEBUGGING
- 11 .debug_aranges 00000398  00000000  00000000  000109d8  2**3
+ 11 .debug_aranges 00000398  00000000  00000000  000109b8  2**3
                   CONTENTS, READONLY, DEBUGGING
- 12 .debug_ranges 00000980  00000000  00000000  00010d70  2**3
+ 12 .debug_ranges 00000980  00000000  00000000  00010d50  2**3
                   CONTENTS, READONLY, DEBUGGING
- 13 .debug_line   000066e2  00000000  00000000  000116f0  2**0
+ 13 .debug_line   000066ce  00000000  00000000  000116d0  2**0
                   CONTENTS, READONLY, DEBUGGING
- 14 .debug_str    000015f2  00000000  00000000  00017dd2  2**0
+ 14 .debug_str    000015f2  00000000  00000000  00017d9e  2**0
                   CONTENTS, READONLY, DEBUGGING
- 15 .comment      00000033  00000000  00000000  000193c4  2**0
+ 15 .comment      00000033  00000000  00000000  00019390  2**0
                   CONTENTS, READONLY
- 16 .debug_frame  00000c9c  00000000  00000000  000193f8  2**2
+ 16 .debug_frame  00000c9c  00000000  00000000  000193c4  2**2
                   CONTENTS, READONLY, DEBUGGING
 SYMBOL TABLE:
 00000000 l    d  .init	00000000 .init
@@ -2877,90 +2877,88 @@ Disassembly of section .text:
     1b98:	1101                	addi	sp,sp,-32
     1b9a:	00011823          	sh	zero,16(sp)
     1b9e:	00010923          	sb	zero,18(sp)
-    1ba2:	0804                	addi	s1,sp,16
-    1ba4:	4401                	li	s0,0
+    1ba2:	0818                	addi	a4,sp,16
+    1ba4:	4481                	li	s1,0
     1ba6:	4781                	li	a5,0
-    1ba8:	4301                	li	t1,0
-    1baa:	00141593          	slli	a1,s0,0x1
-    1bae:	0ff47613          	andi	a2,s0,255
-    1bb2:	c63e                	sw	a5,12(sp)
-    1bb4:	95a2                	add	a1,a1,s0
-    1bb6:	085c                	addi	a5,sp,20
-    1bb8:	95be                	add	a1,a1,a5
-    1bba:	8532                	mv	a0,a2
-    1bbc:	c41a                	sw	t1,8(sp)
-    1bbe:	c032                	sw	a2,0(sp)
-    1bc0:	b3dff0ef          	jal	ra,16fc <load_name>
-    1bc4:	81f18713          	addi	a4,gp,-2017 # 2000013f <current_user_id>
-    1bc8:	2308                	lbu	a0,0(a4)
-    1bca:	4602                	lw	a2,0(sp)
-    1bcc:	c22a                	sw	a0,4(sp)
-    1bce:	a310                	sb	a2,0(a4)
-    1bd0:	8a1ff0ef          	jal	ra,1470 <load_scores>
-    1bd4:	96c18693          	addi	a3,gp,-1684 # 2000028c <scoreHistory>
-    1bd8:	4322                	lw	t1,8(sp)
-    1bda:	47b2                	lw	a5,12(sp)
-    1bdc:	4512                	lw	a0,4(sp)
-    1bde:	4602                	lw	a2,0(sp)
-    1be0:	4705                	li	a4,1
-    1be2:	81f18293          	addi	t0,gp,-2017 # 2000013f <current_user_id>
-    1be6:	43a9                	li	t2,10
-    1be8:	00e685b3          	add	a1,a3,a4
-    1bec:	218c                	lbu	a1,0(a1)
-    1bee:	0004c083          	lbu	ra,0(s1)
-    1bf2:	00b0f363          	bgeu	ra,a1,1bf8 <show_name_and_highest_score+0x64>
-    1bf6:	a08c                	sb	a1,0(s1)
-    1bf8:	0705                	addi	a4,a4,1
-    1bfa:	fe7717e3          	bne	a4,t2,1be8 <show_name_and_highest_score+0x54>
-    1bfe:	2098                	lbu	a4,0(s1)
-    1c00:	00e7f463          	bgeu	a5,a4,1c08 <show_name_and_highest_score+0x74>
-    1c04:	87ba                	mv	a5,a4
-    1c06:	8332                	mv	t1,a2
-    1c08:	00a28023          	sb	a0,0(t0)
-    1c0c:	0405                	addi	s0,s0,1
-    1c0e:	470d                	li	a4,3
-    1c10:	0485                	addi	s1,s1,1
-    1c12:	f8e41ce3          	bne	s0,a4,1baa <show_name_and_highest_score+0x16>
-    1c16:	c23e                	sw	a5,4(sp)
-    1c18:	c01a                	sw	t1,0(sp)
-    1c1a:	9f0ff0ef          	jal	ra,e0a <clear>
-    1c1e:	40011537          	lui	a0,0x40011
-    1c22:	0c000693          	li	a3,192
-    1c26:	8a418613          	addi	a2,gp,-1884 # 200001c4 <led_array>
-    1c2a:	4589                	li	a1,2
-    1c2c:	80050513          	addi	a0,a0,-2048 # 40010800 <__global_pointer$+0x2000fee0>
-    1c30:	afcff0ef          	jal	ra,f2c <WS2812BSimpleSend>
-    1c34:	016e3437          	lui	s0,0x16e3
-    1c38:	60040513          	addi	a0,s0,1536 # 16e3600 <_data_lma+0x16e03e0>
-    1c3c:	a75fe0ef          	jal	ra,6b0 <DelaySysTick>
-    1c40:	4302                	lw	t1,0(sp)
-    1c42:	20000737          	lui	a4,0x20000
-    1c46:	0a872583          	lw	a1,168(a4) # 200000a8 <scroll_name>
-    1c4a:	00131513          	slli	a0,t1,0x1
-    1c4e:	951a                	add	a0,a0,t1
-    1c50:	085c                	addi	a5,sp,20
-    1c52:	0c800613          	li	a2,200
-    1c56:	953e                	add	a0,a0,a5
-    1c58:	c09ff0ef          	jal	ra,1860 <scroll_text>
-    1c5c:	60040513          	addi	a0,s0,1536
-    1c60:	a51fe0ef          	jal	ra,6b0 <DelaySysTick>
-    1c64:	9a6ff0ef          	jal	ra,e0a <clear>
-    1c68:	4792                	lw	a5,4(sp)
-    1c6a:	45a9                	li	a1,10
-    1c6c:	20000437          	lui	s0,0x20000
-    1c70:	853e                	mv	a0,a5
-    1c72:	c43e                	sw	a5,8(sp)
-    1c74:	d2cfe0ef          	jal	ra,1a0 <__umodsi3>
-    1c78:	0ff57793          	andi	a5,a0,255
-    1c7c:	c23e                	sw	a5,4(sp)
-    1c7e:	98cff0ef          	jal	ra,e0a <clear>
-    1c82:	200006b7          	lui	a3,0x20000
-    1c86:	0a468793          	addi	a5,a3,164 # 200000a4 <scoreColor>
-    1c8a:	c03e                	sw	a5,0(sp)
-    1c8c:	47a2                	lw	a5,8(sp)
-    1c8e:	4725                	li	a4,9
-    1c90:	06c40413          	addi	s0,s0,108 # 2000006c <font_list>
-    1c94:	02f77063          	bgeu	a4,a5,1cb4 <show_name_and_highest_score+0x120>
+    1ba8:	c002                	sw	zero,0(sp)
+    1baa:	c43e                	sw	a5,8(sp)
+    1bac:	0ff4f413          	andi	s0,s1,255
+    1bb0:	085c                	addi	a5,sp,20
+    1bb2:	00249593          	slli	a1,s1,0x2
+    1bb6:	95be                	add	a1,a1,a5
+    1bb8:	8522                	mv	a0,s0
+    1bba:	c63a                	sw	a4,12(sp)
+    1bbc:	b41ff0ef          	jal	ra,16fc <load_name>
+    1bc0:	81f18693          	addi	a3,gp,-2017 # 2000013f <current_user_id>
+    1bc4:	2288                	lbu	a0,0(a3)
+    1bc6:	a280                	sb	s0,0(a3)
+    1bc8:	c22a                	sw	a0,4(sp)
+    1bca:	8a7ff0ef          	jal	ra,1470 <load_scores>
+    1bce:	96c18613          	addi	a2,gp,-1684 # 2000028c <scoreHistory>
+    1bd2:	4732                	lw	a4,12(sp)
+    1bd4:	47a2                	lw	a5,8(sp)
+    1bd6:	4512                	lw	a0,4(sp)
+    1bd8:	4685                	li	a3,1
+    1bda:	81f18293          	addi	t0,gp,-2017 # 2000013f <current_user_id>
+    1bde:	43a9                	li	t2,10
+    1be0:	00d605b3          	add	a1,a2,a3
+    1be4:	218c                	lbu	a1,0(a1)
+    1be6:	00074083          	lbu	ra,0(a4)
+    1bea:	00b0f363          	bgeu	ra,a1,1bf0 <show_name_and_highest_score+0x5c>
+    1bee:	a30c                	sb	a1,0(a4)
+    1bf0:	0685                	addi	a3,a3,1
+    1bf2:	fe7697e3          	bne	a3,t2,1be0 <show_name_and_highest_score+0x4c>
+    1bf6:	2314                	lbu	a3,0(a4)
+    1bf8:	00d7f463          	bgeu	a5,a3,1c00 <show_name_and_highest_score+0x6c>
+    1bfc:	87b6                	mv	a5,a3
+    1bfe:	c022                	sw	s0,0(sp)
+    1c00:	00a28023          	sb	a0,0(t0)
+    1c04:	0485                	addi	s1,s1,1
+    1c06:	468d                	li	a3,3
+    1c08:	0705                	addi	a4,a4,1
+    1c0a:	fad490e3          	bne	s1,a3,1baa <show_name_and_highest_score+0x16>
+    1c0e:	c23e                	sw	a5,4(sp)
+    1c10:	9faff0ef          	jal	ra,e0a <clear>
+    1c14:	40011537          	lui	a0,0x40011
+    1c18:	8a418613          	addi	a2,gp,-1884 # 200001c4 <led_array>
+    1c1c:	0c000693          	li	a3,192
+    1c20:	4589                	li	a1,2
+    1c22:	80050513          	addi	a0,a0,-2048 # 40010800 <__global_pointer$+0x2000fee0>
+    1c26:	b06ff0ef          	jal	ra,f2c <WS2812BSimpleSend>
+    1c2a:	016e34b7          	lui	s1,0x16e3
+    1c2e:	60048513          	addi	a0,s1,1536 # 16e3600 <_data_lma+0x16e03e0>
+    1c32:	a7ffe0ef          	jal	ra,6b0 <DelaySysTick>
+    1c36:	4782                	lw	a5,0(sp)
+    1c38:	0c800613          	li	a2,200
+    1c3c:	20000437          	lui	s0,0x20000
+    1c40:	00279513          	slli	a0,a5,0x2
+    1c44:	101c                	addi	a5,sp,32
+    1c46:	00a786b3          	add	a3,a5,a0
+    1c4a:	fe068ba3          	sb	zero,-9(a3)
+    1c4e:	200006b7          	lui	a3,0x20000
+    1c52:	0a86a583          	lw	a1,168(a3) # 200000a8 <scroll_name>
+    1c56:	085c                	addi	a5,sp,20
+    1c58:	953e                	add	a0,a0,a5
+    1c5a:	c07ff0ef          	jal	ra,1860 <scroll_text>
+    1c5e:	60048513          	addi	a0,s1,1536
+    1c62:	a4ffe0ef          	jal	ra,6b0 <DelaySysTick>
+    1c66:	9a4ff0ef          	jal	ra,e0a <clear>
+    1c6a:	4792                	lw	a5,4(sp)
+    1c6c:	45a9                	li	a1,10
+    1c6e:	06c40413          	addi	s0,s0,108 # 2000006c <font_list>
+    1c72:	853e                	mv	a0,a5
+    1c74:	c43e                	sw	a5,8(sp)
+    1c76:	d2afe0ef          	jal	ra,1a0 <__umodsi3>
+    1c7a:	0ff57793          	andi	a5,a0,255
+    1c7e:	c23e                	sw	a5,4(sp)
+    1c80:	98aff0ef          	jal	ra,e0a <clear>
+    1c84:	84ba                	mv	s1,a4
+    1c86:	20000737          	lui	a4,0x20000
+    1c8a:	0a470793          	addi	a5,a4,164 # 200000a4 <scoreColor>
+    1c8e:	c03e                	sw	a5,0(sp)
+    1c90:	47a2                	lw	a5,8(sp)
+    1c92:	46a5                	li	a3,9
+    1c94:	02f6f063          	bgeu	a3,a5,1cb4 <show_name_and_highest_score+0x120>
     1c98:	45a9                	li	a1,10
     1c9a:	853e                	mv	a0,a5
     1c9c:	cd8fe0ef          	jal	ra,174 <__udivsi3>
