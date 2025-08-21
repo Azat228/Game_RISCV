@@ -403,12 +403,7 @@ void save_currentScore_EEPROM(uint8_t score) {
 }
 
 
-// Load all names from EEPROM
-void load_all_names(char names[MAX_USERS][NAME_LENGTH]) {
-    for (uint8_t i = 0; i < MAX_USERS; i++) {
-        load_name(i, names[i]);
-    }
-}
+
 
 void load_scores(void) {
     // Clear current score history
@@ -445,7 +440,7 @@ void reveal_all_scores(void) {
 
     // Display each score with its position
     for (uint8_t i = 0; i < MAX_SCORES;i++) {
-        if (scoreHistory[i] == 0 && i!=0) continue; // Skip empty slots
+        if (scoreHistory[i] == 0) continue; // Skip empty slots and the first slot as it always 0 idk why
 
         // First show which score this is (1-10)
         clear();
@@ -454,7 +449,7 @@ void reveal_all_scores(void) {
         // Display position number (1-10) on right side
         if (i < 9) {
             // Positions 1-9 (display single digit)
-            font_draw(font_list[i+1], scoreColor, 0); // +1 because positions start at 1
+            font_draw(font_list[i], scoreColor, 0);
             WS2812BSimpleSend(LED_PINS, (uint8_t *)led_array, NUM_LEDS * 3);
             Delay_Ms(1000);
         } else {
@@ -552,7 +547,12 @@ void load_name(uint8_t user_id, char* buffer) {
 
     printf("Loaded name '%s' for user %d\n", buffer, user_id);
 }
-
+// Load all names from EEPROM
+void load_all_names(char names[MAX_USERS][NAME_LENGTH]) {
+    for (uint8_t i = 0; i < MAX_USERS; i++) {
+        load_name(i, names[i]);
+    }
+}
 // New function to get current user's name
 void get_current_user_name(char* buffer) {
     if(current_user_id == 0) {
@@ -927,7 +927,6 @@ int main(void) {
                     reveal_all_scores();
                     Delay_Ms(500); // Prevent immediate re-trigger
                 }
-
                 Delay_Ms(10);
                 timeout -= 10;
             }
